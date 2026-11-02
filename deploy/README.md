@@ -27,7 +27,7 @@ Dans `.env`, renseignez au moins `POSTGRES_PASSWORD` et `KEYCLOAK_ADMIN_PASSWORD
 | --- | --- |
 | http://localhost:8008/_matrix/client/versions | Une liste de versions : Synapse répond |
 | http://localhost:8008/_matrix/federation/v1/version | Erreur 404 : la fédération est fermée |
-| http://localhost:8080 | Console d'administration de Keycloak |
+| http://localhost:8180 | Console d'administration de Keycloak |
 | http://localhost:8090 | Page d'accueil de ntfy |
 
 ## Créer deux comptes de test
