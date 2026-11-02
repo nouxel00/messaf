@@ -8,3 +8,6 @@ CREATE DATABASE synapse
   OWNER messaf;
 
 CREATE DATABASE keycloak OWNER messaf;
+
+-- MAS (Matrix Authentication Service) : sessions des applications Matrix
+CREATE DATABASE mas OWNER messaf;

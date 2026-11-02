@@ -1,1 +1,3 @@
 * text=auto eol=lf
+# Les scripts Windows gardent leurs fins de ligne Windows
+*.bat text eol=crlf

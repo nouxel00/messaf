@@ -2,13 +2,20 @@
 
 Configuration de la pile serveur. Le fichier `docker-compose.yml` est à la racine du dépôt pour que tout démarre en une seule commande. Responsable : Axel.
 
+Chaîne de connexion : **application → Synapse → MAS → Keycloak**. Synapse ne voit aucun mot de passe. MAS (Matrix Authentication Service) gère les sessions des applications et confie l'identification à Keycloak : mot de passe, puis code TOTP ou code de secours.
+
 | Fichier | Rôle |
 | --- | --- |
-| `postgres/init.sql` | Crée les bases `synapse` (collation C, exigée par Synapse) et `keycloak` au premier démarrage |
-| `synapse/homeserver.yaml` | Configuration de Synapse, sans aucun secret |
+| `init/generer-secrets.py` | Génère au premier démarrage les secrets internes dans le volume `secrets` (jamais dans Git) |
+| `postgres/init.sql` | Crée les bases `synapse` (collation C), `keycloak` et `mas` au premier démarrage |
+| `synapse/homeserver.yaml` | Configuration de Synapse, connexion déléguée à MAS |
 | `synapse/log.config` | Journaux de Synapse vers la console (`docker compose logs`) |
+| `mas/config.yaml` | Configuration de MAS : Keycloak comme seul fournisseur d'identité |
+| `keycloak/realm-messaf.json` | Domaine `messaf` : 11 comptes fictifs, 6 rôles, TOTP et codes de secours obligatoires, clients `mas` et `portail` |
+| `keycloak/configurer.sh` | Accepte les codes de secours à la connexion (réglage impossible dans l'import) |
+| `relier-telephones.bat` | Relie les téléphones branchés en USB aux ports 8008, 8280 et 8180 |
 
-## Démarrer (jalon 0)
+## Démarrer
 
 Depuis la racine du dépôt, sous Windows (cmd) :
 
@@ -19,38 +26,46 @@ docker compose up -d
 docker compose ps
 ```
 
-Dans `.env`, renseignez au moins `POSTGRES_PASSWORD` et `KEYCLOAK_ADMIN_PASSWORD`.
+Dans `.env`, renseignez `POSTGRES_PASSWORD`, `KEYCLOAK_ADMIN_PASSWORD` et `MESSAF_DEMO_PASSWORD` (12 caractères minimum).
+
+Au premier démarrage, `secrets` et `keycloak-config` s'exécutent une fois puis s'arrêtent : c'est normal (état `Exited (0)`).
 
 ## Vérifier
 
 | Adresse | Résultat attendu |
 | --- | --- |
 | http://localhost:8008/_matrix/client/versions | Une liste de versions : Synapse répond |
+| http://localhost:8008/_matrix/client/v1/auth_metadata | Un document dont `issuer` vaut `http://localhost:8280/` : la connexion passe par MAS |
 | http://localhost:8008/_matrix/federation/v1/version | Erreur 404 : la fédération est fermée |
-| http://localhost:8180 | Console d'administration de Keycloak |
+| http://localhost:8180 | Console d'administration de Keycloak (domaine `messaf`) |
+| http://localhost:8280/login | MAS renvoie vers la page de connexion de Keycloak (domaine MESSAF) |
 | http://localhost:8090 | Page d'accueil de ntfy |
 
-## Créer deux comptes de test
+## Comptes de démonstration
 
-L'inscription libre est fermée : les comptes se créent avec le secret d'enregistrement du serveur.
+Les 11 comptes fictifs du domaine `messaf` ont pour identifiant leur matricule (`100001` à `100011`) et pour mot de passe provisoire `MESSAF_DEMO_PASSWORD`. À la première connexion, Keycloak impose dans l'ordre :
 
-```
-docker compose exec synapse register_new_matrix_user -c /config/homeserver.yaml -u m100005 -p MotDePasseDemo1 --no-admin http://localhost:8008
-docker compose exec synapse register_new_matrix_user -c /config/homeserver.yaml -u m100006 -p MotDePasseDemo2 --no-admin http://localhost:8008
-```
+1. un nouveau mot de passe (12 caractères minimum) ;
+2. le code TOTP : scanner le QR code avec FreeOTP, Aegis ou Google Authenticator ;
+3. les codes de secours : les noter, ils servent une seule fois chacun si le téléphone est perdu.
 
-Synapse refuse les identifiants composés uniquement de chiffres : le matricule est précédé de la lettre `m`.
+MAS crée alors le compte Matrix `@m<matricule>:gov.bf`. Aucun compte ne peut être créé autrement : l'inscription est fermée partout.
 
 ## Connecter l'application Android
 
-- **Émulateur Android** : adresse du serveur `http://10.0.2.2:8008`.
-- **Téléphone branché en USB** : lancez `adb reverse tcp:8008 tcp:8008`, puis utilisez `http://localhost:8008` sur le téléphone.
+Téléphone branché en USB : lancez `deploy\relier-telephones.bat`, puis saisissez l'adresse `http://localhost:8008` dans l'application. Element X ouvre alors la page de connexion de Keycloak dans le navigateur du téléphone.
 
-Element X n'accepte le HTTP non chiffré que vers ces adresses locales. Pour un téléphone en Wi-Fi, il faudra un accès HTTPS (jalon suivant).
+Le script relie trois ports, car le téléphone doit joindre Synapse (8008), MAS (8280) et Keycloak (8180). Relancez-le après chaque débranchement.
+
+## Révoquer un agent
+
+Dans la console Keycloak : domaine `messaf`, **Users**, l'agent, onglet **Sessions**, **Sign out** (ou désactiver le compte). Keycloak prévient MAS, qui ferme toutes les sessions MESSAF de l'agent : son application est déconnectée immédiatement.
 
 ## Arrêter
 
 ```
 docker compose down       # arrête, les données sont conservées
-docker compose down -v    # arrête et efface toutes les données
+docker compose down -v    # arrête et efface toutes les données (comptes, messages, secrets)
 ```
+
+Le domaine `messaf` n'est importé que s'il n'existe pas encore. Après une modification de `realm-messaf.json`, il faut repartir de zéro avec `docker compose down -v`.
