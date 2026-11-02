@@ -58,7 +58,7 @@ services:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Renseignez KEYCLOAK_ADMIN_PASSWORD dans .env}
     ports:
-      - "8080:8080"
+      - "8180:8080"
 
   # Notifications Android sans Google (UnifiedPush), branchées au jalon 4
   ntfy:
