@@ -1,0 +1,79 @@
+# MESSAF - pile serveur du prototype (jalon 0)
+# Démarrage depuis la racine du dépôt :  docker compose up -d
+# Les mots de passe sont lus dans le fichier .env (jamais versionné).
+
+name: messaf
+
+services:
+
+  # Base de données commune : une base "synapse" et une base "keycloak"
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: messaf
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Renseignez POSTGRES_PASSWORD dans .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./deploy/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U messaf"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    # Aucun port publié : seule la pile interne y accède.
+
+  # Serveur Matrix : ne stocke que des messages chiffrés
+  synapse:
+    image: ghcr.io/element-hq/synapse:v1.164.1
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Mot de passe de la base, lu par le pilote PostgreSQL (absent du fichier de configuration)
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    # Donne le volume /data à l'utilisateur de Synapse, puis démarre avec notre configuration
+    entrypoint: ["/bin/sh", "-c", "chown -R 991:991 /data && exec /start.py run --config-path /config/homeserver.yaml"]
+    volumes:
+      - ./deploy/synapse:/config:ro
+      - synapse_data:/data
+    ports:
+      # API client uniquement. Le port de fédération (8448) n'est volontairement pas publié.
+      - "8008:8008"
+
+  # Identité : comptes, second facteur, rôles (branché à Synapse au jalon 1)
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.1
+    restart: unless-stopped
+    command: start-dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: messaf
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Renseignez KEYCLOAK_ADMIN_PASSWORD dans .env}
+    ports:
+      - "8080:8080"
+
+  # Notifications Android sans Google (UnifiedPush), branchées au jalon 4
+  ntfy:
+    image: binwiederhier/ntfy:v2.36.0
+    restart: unless-stopped
+    command: serve
+    environment:
+      NTFY_BASE_URL: http://localhost:8090
+      NTFY_CACHE_FILE: /var/cache/ntfy/cache.db
+    volumes:
+      - ntfy_cache:/var/cache/ntfy
+    ports:
+      - "8090:80"
+
+volumes:
+  postgres_data:
+  synapse_data:
+  ntfy_cache:

@@ -1,0 +1,59 @@
+# Configuration de Synapse pour MESSAF (jalon 0)
+# Aucun secret ici : le mot de passe de la base vient de la variable PGPASSWORD,
+# la clé de signature et le secret d'enregistrement sont générés dans /data au premier démarrage.
+
+# Domaine des identifiants (@matricule:gov.bf). Il ne pourra plus changer ensuite.
+server_name: "gov.bf"
+pid_file: /data/homeserver.pid
+
+listeners:
+  - port: 8008
+    type: http
+    tls: false
+    x_forwarded: true
+    bind_addresses: ['0.0.0.0']
+    resources:
+      # API client seulement : l'API de fédération n'est pas servie.
+      - names: [client]
+        compress: false
+
+database:
+  name: psycopg2
+  args:
+    user: messaf
+    database: synapse
+    host: postgres
+    port: 5432
+    cp_min: 5
+    cp_max: 10
+
+log_config: "/config/log.config"
+media_store_path: /data/media_store
+signing_key_path: "/data/gov.bf.signing.key"
+registration_shared_secret_path: /data/registration_shared_secret
+
+# --- Fermeture aux serveurs extérieurs ---
+federation_domain_whitelist: []   # aucune fédération, avec personne
+trusted_key_servers: []           # pas de serveur de clés extérieur (matrix.org)
+report_stats: false               # aucune statistique envoyée à l'extérieur
+
+# --- Personne ne s'inscrit seul ---
+enable_registration: false
+allow_guest_access: false
+
+# Jalon 0 : connexion par mot de passe pour les comptes de test.
+# Jalon 1 : passer à "enabled: false" quand Keycloak sera branché (OIDC).
+password_config:
+  enabled: true
+
+# --- Minimisation des métadonnées ---
+presence:
+  enabled: false
+url_preview_enabled: false
+
+# Annuaire consultable par tous les agents enrôlés
+user_directory:
+  enabled: true
+  search_all_users: true
+
+max_upload_size: 50M
