@@ -22,7 +22,7 @@ MESSAF suit les fonctions administratives, pas seulement les personnes. On écri
 | `demo/` | Jeu de données fictif et script de chargement | Axel |
 | `docs/` | Note de pré-projet, note de sécurité | Axel et Lionnel |
 
-L'application Android est un fork d'Element X : [messaf-android](LIEN-A-COMPLETER).
+L'application Android est un fork d'Element X : [messaf-android](https://github.com/nouxel00/messaf-android).
 
 ## Technologies et licences
 
