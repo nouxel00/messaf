@@ -11,6 +11,11 @@ import { effacerStockage, ecrireStockage, latence, lireStockage } from './outils
  */
 const CLE_SESSION = 'messaf.demo.session.v1';
 
+/** Session fictive en cours : sert d'auteur aux actions inscrites dans le journal simulé. */
+export function sessionDemoCourante(): SessionUtilisateur | null {
+  return lireStockage<SessionUtilisateur | null>(sessionStorage, CLE_SESSION, null);
+}
+
 export const authDemo: AuthService = {
   mode: 'demo',
 

@@ -1417,6 +1417,52 @@ code,
   padding: 24px;
 }
 
+/* ----- Révocation et journal d'audit ---------------------------------------- */
+
+.btn-danger {
+  background: var(--rouge-600);
+  color: var(--blanc);
+}
+.btn-danger:hover:not(:disabled) {
+  background: var(--rouge-700);
+}
+.textarea {
+  min-height: 92px;
+  padding: 10px 12px;
+  line-height: 1.5;
+  resize: vertical;
+}
+.liste-effets {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+  font-size: 14px;
+}
+/* Tableau en lecture seule, qui défile horizontalement sur petit écran au lieu de passer en cartes */
+.tableau-defilant {
+  overflow-x: auto;
+}
+.tableau-statique tbody tr {
+  cursor: default;
+}
+.tableau-statique tbody tr:hover {
+  background: none;
+}
+.tableau-statique td {
+  font-size: 13.5px;
+}
+.detail-audit {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 2px;
+}
+.barre-filtres-audit {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+}
+
 /* ----- Responsive ----------------------------------------------------------- */
 
 @media (max-width: 1180px) {

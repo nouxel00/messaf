@@ -20,8 +20,8 @@ Elle lit dans le jeton :
 | --- | --- | --- |
 | `GET /sante` | L'API répond | aucun |
 | `GET /moi` | L'utilisateur tel que l'API le voit | tout utilisateur connecté |
-| `GET /structures?ministere=sante` | Le ministère, ses directions et ses services | `gestionnaire_rh`, `admin_ministere` |
-| `GET /postes?ministere=sante` | Les postes du ministère | `gestionnaire_rh`, `admin_ministere` |
+| `GET /structures?ministere=sante` | Le ministère, ses directions et ses services | `gestionnaire_rh`, `admin_ministere`, `auditeur` |
+| `GET /postes?ministere=sante` | Les postes du ministère | `gestionnaire_rh`, `admin_ministere`, `auditeur` |
 | `GET /agents?ministere=sante` | Les agents du ministère | `gestionnaire_rh`, `admin_ministere` |
 | `GET /agents/{matricule}` | Un agent | `gestionnaire_rh`, `admin_ministere` |
 | `POST /agents` | Créer un agent (201, ou 409 si le matricule existe) | `gestionnaire_rh` |

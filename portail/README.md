@@ -1,7 +1,14 @@
-# MESSAF-BF — Portail d'administration, espace RH
+# MESSAF-BF — Portail d'administration
 
-Front-End du module d'**enrôlement des agents** du portail MESSAF-BF (Messagerie Sécurisée de l'Administration du Faso).
-Il permet à un responsable RH (`gestionnaire_rh`) de créer le compte d'un agent de son ministère et de lui remettre sa fiche d'enrôlement.
+Front-End du portail d'administration de MESSAF-BF (Messagerie Sécurisée de l'Administration du Faso). Trois espaces, chacun réservé à son rôle et limité au ministère de l'utilisateur :
+
+| Espace | Rôle | Ce qu'il permet |
+|---|---|---|
+| Enrôlement | `gestionnaire_rh` | Créer le compte d'un agent et lui remettre sa fiche d'enrôlement |
+| Accès des agents | `admin_ministere` | Révoquer immédiatement l'accès d'un agent, ou le rétablir |
+| Contrôle | `auditeur` | Lire le journal d'audit du ministère |
+
+`super_admin` voit les trois.
 
 > **Deux modes.** Par défaut, le portail fonctionne en **démonstration** : connexion fictive, données fictives, créations simulées dans le navigateur, aucun compte créé. Branché sur **Keycloak et l'API d'administration** (voir « Raccordement à Keycloak et à l'API »), il crée de vrais comptes : identifiant Matrix réservé, fiche d'enrôlement avec un vrai code d'activation.
 
@@ -21,8 +28,10 @@ Ouvrir http://localhost:5173, puis se connecter avec un compte de démonstration
 
 | Identifiant | Compte fictif | Résultat attendu |
 |---|---|---|
-| `100003` | Mariam Traoré, `gestionnaire_rh`, Santé | Accès à l'espace RH du ministère de la Santé |
-| `100011` | Boukary Nikéma, `admin_ministere`, Finances | Accès refusé (pas de rôle `gestionnaire_rh`) |
+| `100003` | Mariam Traoré, `gestionnaire_rh`, Santé | Enrôlement des agents de la Santé |
+| `100002` | Paul Zongo, `admin_ministere`, Santé | Révocation et réactivation des agents de la Santé |
+| `100009` | Salif Ouattara, `auditeur`, Santé | Journal d'audit de la Santé |
+| `100011` | Boukary Nikéma, `admin_ministere`, Finances | Cloisonnement : aucun agent de la Santé visible |
 | `100008` | Fatimata Diallo, sans rôle | Accès refusé (messagerie uniquement) |
 
 Autres commandes :
@@ -43,6 +52,8 @@ npm run preview     # sert le build
 6. Sur l'écran de confirmation, télécharger la fiche d'enrôlement de démonstration.
 
 Astuce de test : un matricule commençant par `999` simule une erreur du serveur.
+
+Révocation (moins d'une minute) : se connecter avec `100002` / `demo`, ouvrir **Fatimata DIALLO**, cliquer sur **Révoquer l'accès**, saisir un motif et confirmer. Puis se connecter avec `100009` / `demo` : la révocation apparaît en tête du **Journal d'audit**, avec son motif. Le tableau de bord de l'enrôlement permet d'effacer les essais.
 
 ## Technologies
 
@@ -72,6 +83,7 @@ src/
 │   ├── agents.service.ts      interface + choix démo/API
 │   ├── agents.api.ts          implémentation réelle (GET/POST /agents, GET /agents/{matricule}, fiche PDF)
 │   ├── referentiel.*.ts       organigramme et postes, lecture seule (GET /structures, GET /postes)
+│   ├── audit.*.ts             journal d'audit, lecture seule (GET /audit)
 │   ├── auth.service.ts        interface + choix démo/Keycloak
 │   ├── auth.keycloak.ts       connexion Keycloak (keycloak-js, PKCE, renouvellement du jeton)
 │   └── demo/                  SIMULATIONS : auth, agents, référentiel, fiche PDF
@@ -79,8 +91,10 @@ src/
 ├── validation/    schémas Zod des quatre étapes
 ├── contexts/      AuthContext (session), ReferentielContext (organigramme du ministère)
 ├── hooks/         useAsync, useAgents, useReferentiel, useFicheEnrolement
-├── components/    layout/, navigation/ (route protégée, menu), forms/, tables/, ui/, agents/ (parcours, résumé, fiche)
-└── pages/         auth/ConnexionPage, dashboard/TableauDeBordPage, agents/ (liste, détail, création, confirmation)
+├── components/    layout/, navigation/ (route protégée, rôle exigé, menu), forms/, tables/, ui/,
+│                  agents/ (parcours, résumé, fiche, accès et révocation)
+└── pages/         AccueilPage (selon le rôle), auth/ConnexionPage, dashboard/TableauDeBordPage,
+                   agents/ (liste, détail, création, confirmation), audit/JournalAuditPage
 ```
 
 Règles suivies :
@@ -93,14 +107,15 @@ Règles suivies :
 
 | Route | Écran |
 |---|---|
-| `/connexion` | Connexion RH (démo : identifiant et mot de passe fictifs ; Keycloak : redirection) |
-| `/` | Tableau de bord : agents du périmètre, comptes actifs, créations de la session, derniers ajouts |
+| `/connexion` | Connexion (démo : identifiant et mot de passe fictifs ; Keycloak : redirection) |
+| `/` | Selon le rôle : tableau de bord de l'enrôlement, liste des agents (administrateur) ou journal d'audit (auditeur) |
 | `/agents` | Liste : recherche par matricule ou nom (sans tenir compte des accents), filtres direction et état ; tableau sur grand écran, cartes sur petit écran |
-| `/agents/:matricule` | Fiche détaillée : les 4 objets et la fiche d'enrôlement |
+| `/agents/:matricule` | Fiche détaillée : les 4 objets ; fiche d'enrôlement (RH) ; carte « Accès à MESSAF » avec révocation et réactivation, motif obligatoire (administrateur) |
 | `/agents/nouveau` | Parcours en 5 étapes : identité, profil, poste et affectation, habilitation, récapitulatif |
 | `/agents/:matricule/creation-confirmee` | Confirmation : identifiant Matrix, informations clés, fiche PDF |
+| `/audit` | Journal d'audit : date, auteur, action, agent concerné, résultat (réussi, refusé, échec) et détail ; filtres par action et par résultat |
 
-Toutes les routes, sauf `/connexion`, exigent une session et le rôle `gestionnaire_rh`. Ce contrôle n'est qu'un confort d'affichage : **seule l'API protège réellement les données**, en vérifiant le rôle et le ministère.
+Toutes les routes, sauf `/connexion`, exigent une session et un rôle du portail ; chaque page vérifie ensuite le sien (`config/messaf.ts`, `components/navigation/ExigerRole.tsx`). Ce contrôle n'est qu'un confort d'affichage : **seule l'API protège réellement les données**, en vérifiant le rôle et le ministère.
 
 ## Variables d'environnement
 
@@ -119,6 +134,7 @@ Le bandeau jaune « MODE DÉMONSTRATION » s'affiche dès que l'une des deux pre
 
 - **Connexion** (`services/demo/auth.demo.ts`) : comptes fictifs de `mocks/comptes-demo.mock.ts`. Le mot de passe est comparé puis oublié. Seuls le nom, les rôles et le ministère sont gardés dans le `sessionStorage`, effacé à la fermeture de l'onglet.
 - **Agents** (`services/demo/agents.demo.ts`) : le jeu commun 100001 à 100011 est toujours présent. Les agents créés pendant les essais sont gardés dans le `localStorage` : données fictives uniquement, sans mot de passe ni code. Le tableau de bord permet de les effacer. La simulation imite le serveur : cloisonnement par ministère, refus des doublons (409), contrôle de cohérence avec l'organigramme (422) et délais de réponse.
+- **Révocation et journal** (`services/demo/agents.demo.ts`, `services/demo/journal.demo.ts`) : les états et le journal sont simulés dans le `localStorage`. Le journal part de quelques entrées fictives et reçoit ensuite chaque création, fiche, révocation et réactivation faite pendant les essais.
 - **Fiche d'enrôlement** (`services/demo/fiche.demo.ts`) : PDF généré dans le navigateur. Il porte la mention « DOCUMENT DE DÉMONSTRATION — NON VALABLE POUR UN ENRÔLEMENT RÉEL » et **ne contient aucun code d'activation**.
 - Adresses fictives en `.messaf.example`, un domaine réservé qui n'est jamais attribué.
 
@@ -148,7 +164,7 @@ Le bandeau « MODE DÉMONSTRATION » disparaît. Le portail ne voit jamais le mo
 - Les jetons restent en mémoire, jamais dans le `localStorage`.
 - « Déconnexion » ferme aussi la session Keycloak.
 
-### Routes utilisées (`services/agents.api.ts`, `services/referentiel.api.ts`)
+### Routes utilisées (`services/agents.api.ts`, `services/referentiel.api.ts`, `services/audit.api.ts`)
 
 | Écran | Route |
 |---|---|
@@ -158,6 +174,8 @@ Le bandeau « MODE DÉMONSTRATION » disparaît. Le portail ne voit jamais le mo
 | Vérification du matricule (étape Identité) | `GET /agents/{matricule}` : 404 = libre |
 | Création | `POST /agents` |
 | Fiche d'enrôlement | `GET /agents/{matricule}/fiche-enrolement` |
+| Révocation, réactivation | `POST /agents/{matricule}/revocation`, `POST /agents/{matricule}/reactivation`, corps `{"motif": "…"}` |
+| Journal d'audit | `GET /audit?ministere=…&limite=200` |
 
 Contrat complet : `api/openapi.yaml`, ou http://localhost:8000/docs. Les erreurs arrivent au format `{message, code, champs}`, en français. Le récapitulatif affiche le détail de chaque champ refusé.
 
@@ -171,11 +189,11 @@ Chaque téléchargement de la fiche tire un **nouveau** code d'activation et ann
 | Erreurs | `{message, code, champs}` ; 409 `matricule_existant`, `deja_active`, `compte_revoque` ; 422 `donnees_invalides` | `services/api.ts` |
 | Format du matricule | 6 chiffres | `config/messaf.ts` |
 | Attributs `ministere`, `direction`, `service` | Codes de structure (`sante`, `sante-dh`…) | `types/profile.ts` |
-| Accès à l'espace RH | `gestionnaire_rh` seulement (l'API autorise aussi `admin_ministere` à lire les agents) | `config/messaf.ts` |
+| Rôles par espace | Enrôlement : `gestionnaire_rh` ; consultation des agents : `gestionnaire_rh`, `admin_ministere` ; révocation : `admin_ministere` ; journal : `auditeur` ; `super_admin` partout | `config/messaf.ts` |
 | Contenu du jeton | Rôles dans `realm_access.roles` ; `matricule`, `ministere`, `habilitation` ajoutés par le client `portail` | `auth.keycloak.ts` |
 | Client Keycloak | Domaine `messaf`, client public `portail` | `.env.example` |
 | État d'un compte créé | `actif`, enrôlement `en_attente` jusqu'à la première connexion | `agents.api.ts` |
 
 ## Hors périmètre de cette version
 
-Messagerie, rôles, espace super-administrateur, gestion des structures et des postes, passation et intérim, suspension, réactivation et révocation (déjà disponibles dans l'API), journal d'audit (idem), convocations, suivi des actions, application Android, chiffrement, configuration de Keycloak, Synapse et PostgreSQL.
+Messagerie, gestion des rôles, espace super-administrateur dédié, gestion des structures et des postes, passation et intérim, suspension, convocations, suivi des actions, application Android, chiffrement, configuration de Keycloak, Synapse et PostgreSQL.

@@ -1,6 +1,6 @@
 import { Lock, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { ROLES_ESPACE_RH } from '@/config/messaf';
+import { ROLES_PORTAIL } from '@/config/messaf';
 import { useAuth } from '@/contexts/AuthContext';
 import { LIBELLES_ROLE } from '@/types/messaf';
 import { BandeauDemo } from '../layout/BandeauDemo';
@@ -29,18 +29,21 @@ export function AccesRefuse() {
               <span className="succes-icone" style={{ background: 'var(--rouge-50)', color: 'var(--rouge-600)', borderColor: 'var(--rouge-100)' }}>
                 <Lock size={24} aria-hidden />
               </span>
-              <h1 style={{ fontSize: 20 }}>Accès réservé aux responsables RH</h1>
+              <h1 style={{ fontSize: 20 }}>Accès réservé aux responsables habilités</h1>
             </div>
             <p>
-              Le compte <strong>{session?.nomComplet}</strong> ({roles}) n'a pas accès à l'espace RH. Il faut le rôle{' '}
-              {ROLES_ESPACE_RH.map((r) => (
-                <code key={r}>{r}</code>
+              Le compte <strong>{session?.nomComplet}</strong> ({roles}) n'a pas accès au portail d'administration. Il
+              faut l'un des rôles{' '}
+              {ROLES_PORTAIL.map((r, i) => (
+                <span key={r}>
+                  {i > 0 && ', '}
+                  <code>{r}</code>
+                </span>
               ))}
               .
             </p>
             <p style={{ color: 'var(--texte-doux)', fontSize: 14 }}>
-              Un agent sans rôle particulier n'accède qu'à la messagerie MESSAF. Les autres espaces du portail ne font
-              pas partie de cette version.
+              Un agent sans rôle particulier n'accède qu'à la messagerie MESSAF.
             </p>
           </div>
           <div className="carte-pied">

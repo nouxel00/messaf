@@ -6,8 +6,17 @@ type ValeurReferentiel = ReturnType<typeof useReferentiel>;
 const ReferentielContext = createContext<ValeurReferentiel | null>(null);
 
 /** Charge une seule fois l'organigramme du ministère de l'utilisateur pour tout l'espace RH. */
-export function ReferentielProvider({ ministere, children }: { ministere: string; children: ReactNode }) {
-  const valeur = useReferentiel(ministere);
+export function ReferentielProvider({
+  ministere,
+  actif = true,
+  children,
+}: {
+  ministere: string;
+  /** Faux pour un rôle qui n'a pas besoin de l'organigramme : aucun appel n'est fait. */
+  actif?: boolean;
+  children: ReactNode;
+}) {
+  const valeur = useReferentiel(ministere, actif);
   return <ReferentielContext.Provider value={valeur}>{children}</ReferentielContext.Provider>;
 }
 

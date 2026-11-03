@@ -1,11 +1,14 @@
 import { agentsDemo as seedAgents, type AgentDemo } from '@/mocks/agents.mock';
 import { postesDemo, structuresDemo } from '@/mocks/organizations.mock';
 import type { Agent } from '@/types/agent';
+import type { EtatCompte } from '@/types/messaf';
 import type { VisibiliteAnnuaire } from '@/types/profile';
 import { construireMatrixId } from '@/utils/matrix';
 import type { AgentsService } from '../agents.service';
 import { ApiError } from '../errors';
+import { sessionDemoCourante } from './auth.demo';
 import { genererFicheDemo } from './fiche.demo';
+import { journaliserDemo, reinitialiserJournalDemo } from './journal.demo';
 import { effacerStockage, ecrireStockage, latence, lireStockage } from './outils';
 
 /**
@@ -16,6 +19,8 @@ import { effacerStockage, ecrireStockage, latence, lireStockage } from './outils
  */
 
 const CLE_STOCKAGE = 'messaf.demo.agents-crees.v1';
+/** États modifiés par les révocations et réactivations simulées. */
+const CLE_ETATS = 'messaf.demo.etats.v1';
 
 /** Matricules qui déclenchent une erreur serveur simulée, pour tester l'affichage des erreurs. */
 const PREFIXE_ERREUR_SIMULEE = '999';
@@ -28,6 +33,11 @@ interface AgentDemoStocke extends AgentDemo {
 const agentsCrees = (): AgentDemoStocke[] => lireStockage<AgentDemoStocke[]>(localStorage, CLE_STOCKAGE, []);
 
 const tousLesAgents = (): AgentDemoStocke[] => [...seedAgents, ...agentsCrees()];
+
+const etats = (): Record<string, EtatCompte> => lireStockage<Record<string, EtatCompte>>(localStorage, CLE_ETATS, {});
+function changerEtat(matricule: string, etat: EtatCompte): void {
+  ecrireStockage(localStorage, CLE_ETATS, { ...etats(), [matricule]: etat });
+}
 
 function versAgent(a: AgentDemoStocke): Agent {
   return {
@@ -44,7 +54,7 @@ function versAgent(a: AgentDemoStocke): Agent {
       annuaire: a.annuaire ?? { afficherEmail: true, afficherTelephone: !!a.telephone },
     },
     habilitation: a.habilitation,
-    etat: 'actif',
+    etat: etats()[a.matricule] ?? 'actif',
     matrixId: construireMatrixId(a.matricule),
     affectation: { matricule: a.matricule, poste: a.poste, dateDebut: a.dateDebut, dateFin: a.dateFin },
     poste: postesDemo.find((p) => p.code === a.poste),
@@ -119,6 +129,10 @@ export const agentsDemo: AgentsService = {
       creeLe: new Date().toISOString(),
     };
     ecrireStockage(localStorage, CLE_STOCKAGE, [...agentsCrees(), stocke]);
+    journaliserDemo('creation_agent', 'succes', stocke.matricule, stocke.ministere, {
+      poste: stocke.poste,
+      habilitation: stocke.habilitation,
+    });
     return { agent: versAgent(stocke), simulee: true };
   },
 
@@ -126,10 +140,35 @@ export const agentsDemo: AgentsService = {
     await latence(500, 900);
     const trouve = tousLesAgents().find((a) => a.matricule === matricule);
     if (!trouve) throw new ApiError('Agent introuvable.', 404);
+    journaliserDemo('fiche_enrolement', 'succes', trouve.matricule, trouve.ministere);
     return genererFicheDemo(versAgent(trouve));
+  },
+
+  async revoquer(matricule, motif) {
+    await latence(600, 1100);
+    const trouve = tousLesAgents().find((a) => a.matricule === matricule);
+    if (!trouve) throw new ApiError('Aucun agent ne porte ce matricule.', 404, 'introuvable');
+    if (sessionDemoCourante()?.matricule === matricule) {
+      throw new ApiError('Vous ne pouvez pas révoquer votre propre compte.', 409, 'auto_revocation');
+    }
+    changerEtat(matricule, 'revoque');
+    // Simulation : comme si l'agent avait une session ouverte sur son téléphone
+    const sessionsFermees = 1;
+    journaliserDemo('revocation', 'succes', matricule, trouve.ministere, { motif, sessions_fermees: sessionsFermees });
+    return { etat: 'revoque', sessionsFermees };
+  },
+
+  async reactiver(matricule, motif) {
+    await latence(400, 800);
+    const trouve = tousLesAgents().find((a) => a.matricule === matricule);
+    if (!trouve) throw new ApiError('Aucun agent ne porte ce matricule.', 404, 'introuvable');
+    changerEtat(matricule, 'actif');
+    journaliserDemo('reactivation', 'succes', matricule, trouve.ministere, { motif });
   },
 
   reinitialiserDemonstration() {
     effacerStockage(localStorage, CLE_STOCKAGE);
+    effacerStockage(localStorage, CLE_ETATS);
+    reinitialiserJournalDemo();
   },
 };

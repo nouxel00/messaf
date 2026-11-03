@@ -49,3 +49,10 @@ export interface FiltreAgents {
   /** Périmètre du responsable connecté : le serveur reste seul garant du cloisonnement. */
   ministere: string;
 }
+
+/** Résultat d'une révocation : le compte est bloqué et ses sessions sont fermées. */
+export interface ResultatRevocation {
+  etat: EtatCompte;
+  /** Nombre de sessions fermées (applications, navigateur, jetons personnels). */
+  sessionsFermees: number;
+}
