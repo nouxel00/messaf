@@ -19,6 +19,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     definirFournisseurJeton(() => authService.jeton());
+    authService.surExpiration?.(() => setSession(null));
     authService
       .restaurer()
       .then(setSession)

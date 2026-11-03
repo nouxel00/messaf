@@ -3,7 +3,7 @@
 Front-End du module d'**enrôlement des agents** du portail MESSAF-BF (Messagerie Sécurisée de l'Administration du Faso).
 Il permet à un responsable RH (`gestionnaire_rh`) de créer le compte d'un agent de son ministère et de lui remettre sa fiche d'enrôlement.
 
-> **État actuel : prototype en mode démonstration.** La connexion est fictive, les données sont fictives et les créations sont simulées dans le navigateur. **Aucun compte Keycloak ni Matrix n'est créé.** Le raccordement à Keycloak et à l'API d'administration (Axel) est préparé, pas encore effectué.
+> **Deux modes.** Par défaut, le portail fonctionne en **démonstration** : connexion fictive, données fictives, créations simulées dans le navigateur, aucun compte créé. Branché sur **Keycloak et l'API d'administration** (voir « Raccordement à Keycloak et à l'API »), il crée de vrais comptes : identifiant Matrix réservé, fiche d'enrôlement avec un vrai code d'activation.
 
 Ce dossier correspond à `messaf/portail/` dans le dépôt commun.
 
@@ -54,6 +54,7 @@ Astuce de test : un matricule commençant par `999` simule une erreur du serveur
 | [Zod](https://zod.dev) | 4 | MIT | Validation des saisies |
 | [@hookform/resolvers](https://github.com/react-hook-form/resolvers) | 5 | MIT | Lien Zod ↔ React Hook Form |
 | [jsPDF](https://github.com/parallax/jsPDF) | 4 | MIT | Fiche PDF de démonstration uniquement, chargée à la demande |
+| [keycloak-js](https://www.keycloak.org/securing-apps/javascript-adapter) | 26.2.4 | Apache-2.0 | Connexion Keycloak (code d'autorisation avec PKCE), renouvellement du jeton |
 | [Lucide](https://lucide.dev) | 1 | ISC | Icônes |
 | [Vite](https://vite.dev) | 7 | MIT | Outil de développement et de build |
 | [TypeScript](https://www.typescriptlang.org) | 5.9 | Apache-2.0 | Typage |
@@ -69,10 +70,10 @@ src/
 │                  assignment.ts, structure.ts, agent.ts, auth.ts
 ├── services/      api.ts (client HTTP + jeton), errors.ts
 │   ├── agents.service.ts      interface + choix démo/API
-│   ├── agents.api.ts          implémentation réelle (POST /agents, GET …/fiche-enrolement)
-│   ├── referentiel.*.ts       organigramme et postes (lecture seule)
+│   ├── agents.api.ts          implémentation réelle (GET/POST /agents, GET /agents/{matricule}, fiche PDF)
+│   ├── referentiel.*.ts       organigramme et postes, lecture seule (GET /structures, GET /postes)
 │   ├── auth.service.ts        interface + choix démo/Keycloak
-│   ├── auth.keycloak.ts       raccordement Keycloak préparé, non connecté
+│   ├── auth.keycloak.ts       connexion Keycloak (keycloak-js, PKCE, renouvellement du jeton)
 │   └── demo/                  SIMULATIONS : auth, agents, référentiel, fiche PDF
 ├── mocks/         données fictives (jeu commun de la section 10, organigramme, comptes)
 ├── validation/    schémas Zod des quatre étapes
@@ -121,38 +122,60 @@ Le bandeau jaune « MODE DÉMONSTRATION » s'affiche dès que l'une des deux pre
 - **Fiche d'enrôlement** (`services/demo/fiche.demo.ts`) : PDF généré dans le navigateur. Il porte la mention « DOCUMENT DE DÉMONSTRATION — NON VALABLE POUR UN ENRÔLEMENT RÉEL » et **ne contient aucun code d'activation**.
 - Adresses fictives en `.messaf.example`, un domaine réservé qui n'est jamais attribué.
 
-## Raccordement futur
+## Raccordement à Keycloak et à l'API
 
-### API d'administration
+Prérequis : la pile Docker du dépôt démarrée (`docker compose up -d` à la racine). Keycloak répond sur http://localhost:8180 et l'API sur http://localhost:8000.
 
-1. Mettre `VITE_DATA_SOURCE=api` et `VITE_API_BASE_URL`.
-2. Une fois `api/openapi.yaml` validé, aligner les types `CreerAgentRequete` et `CreerAgentReponse` de `services/agents.api.ts`, ainsi que la lecture des erreurs dans `services/api.ts`.
-3. Brancher les routes de lecture manquantes (voir plus bas) dans `agents.api.ts` et `referentiel.api.ts`.
+1. Créer `portail/.env.local` :
+   ```
+   VITE_DATA_SOURCE=api
+   VITE_AUTH_MODE=keycloak
+   VITE_API_BASE_URL=http://localhost:8000
+   VITE_KEYCLOAK_URL=http://localhost:8180
+   VITE_KEYCLOAK_REALM=messaf
+   VITE_KEYCLOAK_CLIENT_ID=portail
+   ```
+2. `npm install`, puis `npm run dev` (port 5173 ; 5174 est aussi accepté par Keycloak et par l'API).
+3. Se connecter avec un compte du domaine `messaf`, par exemple `100003` (Mariam Traoré, `gestionnaire_rh`, Santé) : mot de passe et code à 6 chiffres, saisis sur la page de Keycloak.
 
-Aucun composant n'est à modifier. En attendant ces routes, le mode API affiche « Fonction pas encore raccordée » au lieu d'inventer des données.
+Le bandeau « MODE DÉMONSTRATION » disparaît. Le portail ne voit jamais le mot de passe ni le code à 6 chiffres.
 
-### Keycloak
+### Connexion (`services/auth.keycloak.ts`)
 
-1. `npm install keycloak-js`.
-2. Implémenter les quatre méthodes de `services/auth.keycloak.ts` (flux Authorization Code avec PKCE, `check-sso`, `updateToken`). La marche à suivre est indiquée en commentaire dans le fichier.
-3. Construire la session avec `sessionDepuisJeton(keycloak.tokenParsed)`, déjà écrit.
-4. Mettre `VITE_AUTH_MODE=keycloak`. Le jeton est joint automatiquement à chaque appel API (`Authorization: Bearer`).
+- Client public `portail`, flux « Authorization Code » avec PKCE (S256) : aucun secret dans le navigateur.
+- Au chargement, une vérification silencieuse (iframe vers `public/silent-check-sso.html`) reprend la session Keycloak sans redirection visible.
+- Le jeton d'accès dure 5 minutes. Il est renouvelé avant chaque appel à l'API quand il lui reste moins de 30 secondes. Si la session Keycloak a pris fin (30 minutes d'inactivité, déconnexion, compte révoqué), le portail revient à la page de connexion.
+- Les jetons restent en mémoire, jamais dans le `localStorage`.
+- « Déconnexion » ferme aussi la session Keycloak.
 
-## Points à valider avec Axel
+### Routes utilisées (`services/agents.api.ts`, `services/referentiel.api.ts`)
 
-| Sujet | Hypothèse provisoire dans le code | Où |
+| Écran | Route |
+|---|---|
+| Organigramme et postes du formulaire | `GET /structures?ministere=…`, `GET /postes?ministere=…` |
+| Tableau de bord, liste | `GET /agents?ministere=…` |
+| Fiche détaillée | `GET /agents/{matricule}` |
+| Vérification du matricule (étape Identité) | `GET /agents/{matricule}` : 404 = libre |
+| Création | `POST /agents` |
+| Fiche d'enrôlement | `GET /agents/{matricule}/fiche-enrolement` |
+
+Contrat complet : `api/openapi.yaml`, ou http://localhost:8000/docs. Les erreurs arrivent au format `{message, code, champs}`, en français. Le récapitulatif affiche le détail de chaque champ refusé.
+
+Chaque téléchargement de la fiche tire un **nouveau** code d'activation et annule le précédent : ne télécharger la fiche qu'au moment de la remettre. Une fois le compte activé, la fiche détaillée affiche « Compte activé » au lieu du bouton.
+
+## Valeurs convenues avec l'API
+
+| Sujet | Valeur | Où |
 |---|---|---|
-| Schéma JSON de `POST /agents` (requête, réponse, erreurs) | Sections `identite` / `profil` / `habilitation` / `affectation`, champs en snake_case ; erreurs `{message, code, champs}` ; 409 = matricule existant | `services/agents.api.ts`, `services/api.ts` |
-| Liste et consultation des agents | Aucune route dans le document : à ajouter (par exemple `GET /agents`, `GET /agents/{matricule}`) | `agents.api.ts` |
-| Organigramme et postes | Aucune route : à ajouter (lecture des structures et des postes d'un ministère) | `referentiel.api.ts` |
-| Vérification anticipée d'un matricule | Pas de route : l'unicité est vérifiée au `POST` | `agents.api.ts` |
-| Format du matricule | 6 chiffres, comme dans le jeu de données | `config/messaf.ts` |
-| Valeur des attributs `ministere`, `direction`, `service` | Codes de structure (`sante`, `sante-dh`…), pas des libellés | `types/profile.ts` |
-| Accès de `admin_ministere` à l'enrôlement | Non : seul `gestionnaire_rh` y accède | `config/messaf.ts` |
-| Contenu du jeton | Rôles dans `realm_access.roles` ; `matricule` et `ministere` exposés dans le jeton | `auth.keycloak.ts` |
-| Client Keycloak du portail | Realm `messaf`, client public `portail` | `.env.example` |
-| État initial d'un compte créé | Renvoyé par le serveur (la démo affiche `actif`) | `agents.api.ts` |
+| Corps de `POST /agents` | Sections `identite` / `profil` / `habilitation` / `affectation`, champs en snake_case | `services/agents.api.ts` |
+| Erreurs | `{message, code, champs}` ; 409 `matricule_existant`, `deja_active`, `compte_revoque` ; 422 `donnees_invalides` | `services/api.ts` |
+| Format du matricule | 6 chiffres | `config/messaf.ts` |
+| Attributs `ministere`, `direction`, `service` | Codes de structure (`sante`, `sante-dh`…) | `types/profile.ts` |
+| Accès à l'espace RH | `gestionnaire_rh` seulement (l'API autorise aussi `admin_ministere` à lire les agents) | `config/messaf.ts` |
+| Contenu du jeton | Rôles dans `realm_access.roles` ; `matricule`, `ministere`, `habilitation` ajoutés par le client `portail` | `auth.keycloak.ts` |
+| Client Keycloak | Domaine `messaf`, client public `portail` | `.env.example` |
+| État d'un compte créé | `actif`, enrôlement `en_attente` jusqu'à la première connexion | `agents.api.ts` |
 
 ## Hors périmètre de cette version
 
-Messagerie, rôles, espace super-administrateur, gestion des structures et des postes, passation et intérim, suspension, réactivation et révocation, journal d'audit, convocations, suivi des actions, application Android, chiffrement, configuration de Keycloak, Synapse et PostgreSQL.
+Messagerie, rôles, espace super-administrateur, gestion des structures et des postes, passation et intérim, suspension, réactivation et révocation (déjà disponibles dans l'API), journal d'audit (idem), convocations, suivi des actions, application Android, chiffrement, configuration de Keycloak, Synapse et PostgreSQL.

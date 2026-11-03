@@ -12,6 +12,24 @@ import { construireMatrixId } from '@/utils/matrix';
 import { nomComplet } from '@/utils/format';
 import { ActionsEtape } from './commun';
 
+/** Libellés des champs que le serveur peut refuser (clés de `champs` dans une erreur 422). */
+const LIBELLES_CHAMPS: Record<string, string> = {
+  matricule: 'Matricule',
+  'identite.matricule': 'Matricule',
+  'identite.nom': 'Nom',
+  'identite.prenoms': 'Prénoms',
+  'identite.email': 'Courriel professionnel',
+  'identite.telephone': 'Téléphone professionnel',
+  'profil.ministere': 'Ministère',
+  'profil.direction': 'Direction',
+  'profil.service': 'Service',
+  habilitation: 'Habilitation',
+  affectation: 'Affectation',
+  'affectation.poste': 'Poste',
+  'affectation.date_debut': 'Date de début',
+  'affectation.date_fin': 'Date de fin',
+};
+
 interface Props {
   nouvelAgent: NouvelAgent;
   referentiel: Referentiel;
@@ -71,6 +89,15 @@ export function EtapeRecapitulatif({ nouvelAgent, referentiel, modifier, precede
         <div ref={zoneErreur}>
           <Alerte ton="erreur" className="mt" titre={doublon ? 'Matricule déjà utilisé' : 'La création a échoué'}>
             <p>{messageErreur(erreur)}</p>
+            {erreur instanceof ApiError && erreur.champs && (
+              <ul style={{ margin: '8px 0 0 18px' }}>
+                {Object.entries(erreur.champs).map(([champ, message]) => (
+                  <li key={champ}>
+                    {LIBELLES_CHAMPS[champ] ?? champ} : {message}
+                  </li>
+                ))}
+              </ul>
+            )}
             {doublon && (
               <button type="button" className="btn btn-secondaire btn-petit" style={{ marginTop: 10 }} onClick={() => modifier('identite')}>
                 <Pencil size={14} aria-hidden />

@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <title>MESSAF</title>
+  </head>
+  <body>
+    <!-- Vérification silencieuse de la session Keycloak (keycloak-js, option silentCheckSsoRedirectUri) -->
+    <script>
+      parent.postMessage(location.href, location.origin);
+    </script>
+  </body>
+</html>
