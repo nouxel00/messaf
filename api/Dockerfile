@@ -7,6 +7,10 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Swagger UI servi par l'API elle-même : la documentation /docs fonctionne sans Internet
+COPY outils ./outils
+RUN python outils/telecharger_swagger.py /app/static/swagger
+
 COPY messaf_api ./messaf_api
 
 # Compte sans privilèges

@@ -4,13 +4,17 @@ Appelée par le portail de Lionnel, avec le jeton Keycloak de l'utilisateur conn
 Documentation interactive : http://localhost:8000/docs
 """
 import logging
+import os
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+from pathlib import Path
 
 from fastapi import Depends, FastAPI, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.docs import get_swagger_ui_html, get_swagger_ui_oauth2_redirect_html
 from fastapi.responses import JSONResponse, Response
+from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from . import base, demo, fiche
@@ -61,9 +65,39 @@ app = FastAPI(
     description="Enrôlement, révocation et audit des agents. Chaque appel exige un jeton Keycloak du domaine messaf : "
                 "dans cette page, bouton « Authorize », puis connexion avec un compte du domaine (mot de passe et code TOTP).",
     lifespan=cycle_de_vie,
-    # Connexion depuis la documentation interactive, avec le client public « portail » et PKCE
-    swagger_ui_init_oauth={"clientId": "portail", "usePkceWithAuthorizationCodeGrant": True, "scopes": "openid"},
+    # La documentation est servie plus bas, avec des fichiers locaux
+    docs_url=None,
+    redoc_url=None,
 )
+
+# Connexion depuis la documentation interactive, avec le client public « portail » et PKCE
+CONNEXION_DOCUMENTATION = {"clientId": "portail", "usePkceWithAuthorizationCodeGrant": True, "scopes": "openid"}
+DOSSIER_SWAGGER = Path(os.environ.get("SWAGGER_DIR", "/app/static/swagger"))
+if DOSSIER_SWAGGER.is_dir():
+    app.mount("/static/swagger", StaticFiles(directory=DOSSIER_SWAGGER), name="swagger")
+
+
+@app.get("/docs", include_in_schema=False)
+def documentation():
+    # Fichiers de Swagger UI installés dans l'image ; à défaut (développement), ceux du site jsDelivr
+    local = DOSSIER_SWAGGER.is_dir()
+    base_url = "/static/swagger" if local else "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.33.3"
+    return get_swagger_ui_html(
+        openapi_url=app.openapi_url,
+        title="API d'administration MESSAF",
+        swagger_js_url=f"{base_url}/swagger-ui-bundle.js",
+        swagger_css_url=f"{base_url}/swagger-ui.css",
+        swagger_favicon_url=f"{base_url}/favicon-32x32.png",
+        oauth2_redirect_url="/docs/oauth2-redirect",
+        init_oauth=CONNEXION_DOCUMENTATION,
+    )
+
+
+@app.get("/docs/oauth2-redirect", include_in_schema=False)
+def documentation_retour_connexion():
+    return get_swagger_ui_oauth2_redirect_html()
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=reglages.origines,
