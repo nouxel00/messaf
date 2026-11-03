@@ -22,7 +22,7 @@ from .config import reglages
 from .erreurs import ErreurApi, conflit, introuvable, invalide
 from .keycloak import ACTIONS_PREMIERE_CONNEXION, keycloak
 from .mas import mas
-from .modeles import Motif, NouvelAgent
+from .modeles import Erreur, Motif, NouvelAgent
 from .securite import Utilisateur, exiger_perimetre, exiger_role, utilisateur_courant
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s : %(message)s")
@@ -48,6 +48,20 @@ LECTEURS = ("gestionnaire_rh", "admin_ministere")
 ENROLEURS = ("gestionnaire_rh",)
 REVOCATEURS = ("admin_ministere",)
 AUDITEURS = ("auditeur",)
+
+# Erreurs décrites dans la documentation (/docs et openapi.yaml), toutes au format Erreur
+DESCRIPTIONS_ERREURS = {
+    401: "`non_authentifie` : jeton absent, invalide ou expiré",
+    403: "`interdit` : rôle ou périmètre insuffisant",
+    404: "`introuvable` : aucun agent ne porte ce matricule",
+    422: "`donnees_invalides` : le détail de chaque champ est dans `champs`",
+    503: "`service_indisponible` : Keycloak ou MAS ne répond pas",
+}
+
+
+def erreurs(*statuts: int, details: dict[int, str] | None = None) -> dict:
+    details = details or {}
+    return {s: {"model": Erreur, "description": details.get(s, DESCRIPTIONS_ERREURS.get(s))} for s in statuts}
 
 
 @asynccontextmanager
@@ -226,7 +240,7 @@ def sante():
     return {"statut": "ok"}
 
 
-@app.get("/moi", tags=["Service"], summary="L'utilisateur connecté, tel que l'API le voit")
+@app.get("/moi", tags=["Service"], summary="L'utilisateur connecté, tel que l'API le voit", responses=erreurs(401))
 def moi(utilisateur: Utilisateur = Depends(utilisateur_courant)):
     return {
         "identifiant": utilisateur.identifiant,
@@ -237,19 +251,21 @@ def moi(utilisateur: Utilisateur = Depends(utilisateur_courant)):
     }
 
 
-@app.get("/structures", tags=["Référentiel"], summary="Le ministère et toutes ses directions et services")
+@app.get("/structures", tags=["Référentiel"], summary="Le ministère et toutes ses directions et services",
+         responses=erreurs(401, 403, 422))
 def structures(ministere: str | None = Query(default=None), utilisateur: Utilisateur = Depends(utilisateur_courant)):
     exiger_role(utilisateur, *LECTEURS)
     return base.structures_du_ministere(_ministere_demande(utilisateur, ministere))
 
 
-@app.get("/postes", tags=["Référentiel"], summary="Les postes rattachés aux structures du ministère")
+@app.get("/postes", tags=["Référentiel"], summary="Les postes rattachés aux structures du ministère",
+         responses=erreurs(401, 403, 422))
 def postes(ministere: str | None = Query(default=None), utilisateur: Utilisateur = Depends(utilisateur_courant)):
     exiger_role(utilisateur, *LECTEURS)
     return base.postes_du_ministere(_ministere_demande(utilisateur, ministere))
 
 
-@app.get("/agents", tags=["Agents"], summary="Les agents d'un ministère")
+@app.get("/agents", tags=["Agents"], summary="Les agents d'un ministère", responses=erreurs(401, 403, 422, 503))
 def lister_agents(ministere: str | None = Query(default=None), utilisateur: Utilisateur = Depends(utilisateur_courant)):
     exiger_role(utilisateur, *LECTEURS)
     ministere = _ministere_demande(utilisateur, ministere)
@@ -257,7 +273,7 @@ def lister_agents(ministere: str | None = Query(default=None), utilisateur: Util
     return sorted(agents, key=lambda a: a["identite"]["matricule"])
 
 
-@app.get("/agents/{matricule}", tags=["Agents"], summary="Un agent")
+@app.get("/agents/{matricule}", tags=["Agents"], summary="Un agent", responses=erreurs(401, 403, 404, 422, 503))
 def obtenir_agent(matricule: str, utilisateur: Utilisateur = Depends(utilisateur_courant)):
     exiger_role(utilisateur, *LECTEURS)
     agent = _agent_keycloak(matricule)
@@ -265,7 +281,13 @@ def obtenir_agent(matricule: str, utilisateur: Utilisateur = Depends(utilisateur
     return _vue_agent(agent)
 
 
-@app.post("/agents", status_code=201, tags=["Agents"], summary="Créer un agent (son enrôlement commence)")
+@app.post(
+    "/agents",
+    status_code=201,
+    tags=["Agents"],
+    summary="Créer un agent (son enrôlement commence)",
+    responses=erreurs(401, 403, 409, 422, 503, details={409: "`matricule_existant` : ce matricule est déjà utilisé"}),
+)
 def creer_agent(nouvel: NouvelAgent, utilisateur: Utilisateur = Depends(utilisateur_courant)):
     identite, profil, affectation = nouvel.identite, nouvel.profil, nouvel.affectation
     _controler(utilisateur, "creation_agent", ENROLEURS, profil.ministere, identite.matricule)
@@ -323,7 +345,12 @@ def creer_agent(nouvel: NouvelAgent, utilisateur: Utilisateur = Depends(utilisat
     tags=["Agents"],
     summary="Fiche PDF avec un nouveau code d'activation (le précédent est annulé)",
     response_class=Response,
-    responses={200: {"content": {"application/pdf": {}}}},
+    responses={
+        200: {"content": {"application/pdf": {}}},
+        **erreurs(401, 403, 404, 409, 422, 503, details={
+            409: "`deja_active` : l'agent a déjà activé son compte ; `compte_revoque` : le compte est révoqué",
+        }),
+    },
 )
 def fiche_enrolement(matricule: str, utilisateur: Utilisateur = Depends(utilisateur_courant)):
     agent = _agent_keycloak(matricule)
@@ -362,7 +389,15 @@ def fiche_enrolement(matricule: str, utilisateur: Utilisateur = Depends(utilisat
     )
 
 
-@app.post("/agents/{matricule}/revocation", tags=["Agents"], summary="Révoquer : Keycloak bloqué, sessions MAS fermées")
+@app.post(
+    "/agents/{matricule}/revocation",
+    tags=["Agents"],
+    summary="Révoquer : connexion bloquée, toutes les sessions fermées",
+    responses=erreurs(401, 403, 404, 409, 422, 503, details={
+        409: "`auto_revocation` : un administrateur ne peut pas révoquer son propre compte",
+        503: "`service_indisponible` : Keycloak ne répond pas ; `revocation_partielle` : compte bloqué dans Keycloak, mais MAS n'a pas répondu (relancer la révocation)",
+    }),
+)
 def revoquer(matricule: str, corps: Motif | None = None, utilisateur: Utilisateur = Depends(utilisateur_courant)):
     agent = _agent_keycloak(matricule)
     ministere = _valeur(agent, "ministere")
@@ -371,13 +406,14 @@ def revoquer(matricule: str, corps: Motif | None = None, utilisateur: Utilisateu
         raise conflit("auto_revocation", "Vous ne pouvez pas révoquer votre propre compte.")
     motif = corps.motif if corps else None
 
-    # 1. Keycloak : plus aucune connexion possible
+    # 1. Keycloak : plus aucune nouvelle connexion possible
     agent["enabled"] = False
     agent.setdefault("attributes", {})["etat"] = ["revoque"]
     keycloak.modifier(agent["id"], agent)
-    keycloak.fermer_sessions(agent["id"])
 
-    # 2. MAS : compte verrouillé et toutes les sessions des applications fermées
+    # 2. MAS : compte verrouillé, puis toutes ses sessions fermées (applications et navigateur).
+    #    Avant la fermeture des sessions Keycloak : celle-ci prévient MAS, qui fermerait alors
+    #    lui-même une partie des sessions, et le nombre renvoyé ne compterait plus que le reste.
     sessions = 0
     try:
         compte = mas.utilisateur(f"m{matricule}")
@@ -385,17 +421,26 @@ def revoquer(matricule: str, corps: Motif | None = None, utilisateur: Utilisateu
             mas.verrouiller(compte["id"])
             sessions = mas.fermer_sessions(compte["id"])
     except ErreurApi as erreur:
+        keycloak.fermer_sessions(agent["id"])
         base.journaliser(utilisateur.identifiant, "revocation", "echec", matricule, ministere,
                          {"motif": motif, "etape": "mas", "erreur": erreur.message})
         raise ErreurApi(503, "revocation_partielle",
                         "Le compte est bloqué dans Keycloak, mais MAS n'a pas répondu : relancez la révocation.") from erreur
+
+    # 3. Keycloak : ses propres sessions fermées
+    keycloak.fermer_sessions(agent["id"])
 
     base.journaliser(utilisateur.identifiant, "revocation", "succes", matricule, ministere,
                      {"motif": motif, "sessions_fermees": sessions})
     return {"matricule": matricule, "etat": "revoque", "sessions_fermees": sessions}
 
 
-@app.post("/agents/{matricule}/reactivation", tags=["Agents"], summary="Réactiver un compte révoqué")
+@app.post(
+    "/agents/{matricule}/reactivation",
+    tags=["Agents"],
+    summary="Réactiver un compte révoqué",
+    responses=erreurs(401, 403, 404, 422, 503),
+)
 def reactiver(matricule: str, corps: Motif | None = None, utilisateur: Utilisateur = Depends(utilisateur_courant)):
     agent = _agent_keycloak(matricule)
     ministere = _valeur(agent, "ministere")
@@ -412,7 +457,8 @@ def reactiver(matricule: str, corps: Motif | None = None, utilisateur: Utilisate
     return {"matricule": matricule, "etat": "actif"}
 
 
-@app.get("/audit", tags=["Audit"], summary="Journal d'audit, du plus récent au plus ancien")
+@app.get("/audit", tags=["Audit"], summary="Journal d'audit, du plus récent au plus ancien",
+         responses=erreurs(401, 403, 422))
 def audit(
     ministere: str | None = Query(default=None),
     limite: int = Query(default=100, ge=1, le=1000),

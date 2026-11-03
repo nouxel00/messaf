@@ -52,3 +52,10 @@ class NouvelAgent(Strict):
 
 class Motif(Strict):
     motif: str | None = Field(default=None, max_length=500)
+
+
+class Erreur(BaseModel):
+    """Format commun de toutes les erreurs de l'API."""
+    message: str = Field(description="Message en français, à afficher tel quel")
+    code: str = Field(description="Code stable, à tester par le portail")
+    champs: dict[str, str] | None = Field(default=None, description="Erreur de chaque champ refusé (422 seulement)")

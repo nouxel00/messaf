@@ -12,7 +12,14 @@ import httpx
 from .config import lire_secret, reglages
 from .erreurs import service_indisponible
 
-TYPES_SESSIONS = ("oauth2-sessions", "compat-sessions", "user-sessions")
+# Sessions d'un agent : applications (OAuth 2.0), anciens clients (compat), navigateur,
+# et jetons personnels qui agissent en son nom. Chaque type a son filtre et son action de fermeture.
+TYPES_SESSIONS = (
+    ("oauth2-sessions", "filter[user]", "finish"),
+    ("compat-sessions", "filter[user]", "finish"),
+    ("user-sessions", "filter[user]", "finish"),
+    ("personal-sessions", "filter[actor_user]", "revoke"),
+)
 
 
 class MasAdmin:
@@ -48,36 +55,41 @@ class MasAdmin:
             raise service_indisponible(f"MAS a répondu par une erreur ({reponse.status_code}).")
         return reponse
 
+    @staticmethod
+    def _verifier(reponse: httpx.Response) -> httpx.Response:
+        # Un refus de MAS empêche la révocation de se terminer : signalé comme une panne (503), pas un plantage
+        if reponse.is_error:
+            raise service_indisponible(f"MAS a refusé la demande ({reponse.status_code}).")
+        return reponse
+
     def utilisateur(self, localpart: str) -> dict | None:
         """Compte MAS d'un agent, ou None s'il ne s'est encore jamais connecté."""
         reponse = self._appel("GET", f"/users/by-username/{localpart}")
         if reponse.status_code == 404:
             return None
-        reponse.raise_for_status()
-        return reponse.json()["data"]
+        return self._verifier(reponse).json()["data"]
 
     def verrouiller(self, identifiant: str) -> None:
-        self._appel("POST", f"/users/{identifiant}/lock").raise_for_status()
+        self._verifier(self._appel("POST", f"/users/{identifiant}/lock"))
 
     def deverrouiller(self, identifiant: str) -> None:
-        self._appel("POST", f"/users/{identifiant}/unlock").raise_for_status()
+        self._verifier(self._appel("POST", f"/users/{identifiant}/unlock"))
 
     def fermer_sessions(self, identifiant: str) -> int:
         """Ferme toutes les sessions actives de l'agent ; renvoie leur nombre."""
         fermees = 0
-        for type_session in TYPES_SESSIONS:
+        for type_session, filtre, action in TYPES_SESSIONS:
             for _page in range(50):  # au plus 5 000 sessions par type, par sécurité
                 reponse = self._appel(
                     "GET",
                     f"/{type_session}",
-                    params={"filter[user]": identifiant, "filter[status]": "active", "page[first]": "100"},
+                    params={filtre: identifiant, "filter[status]": "active", "page[first]": "100"},
                 )
-                reponse.raise_for_status()
-                sessions = reponse.json().get("data", [])
+                sessions = self._verifier(reponse).json().get("data", [])
                 if not sessions:
                     break
                 for session in sessions:
-                    self._appel("POST", f"/{type_session}/{session['id']}/finish").raise_for_status()
+                    self._verifier(self._appel("POST", f"/{type_session}/{session['id']}/{action}"))
                     fermees += 1
         return fermees
 

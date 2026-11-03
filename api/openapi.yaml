@@ -31,6 +31,12 @@ paths:
           content:
             application/json:
               schema: {}
+        '401':
+          description: '`non_authentifie` : jeton absent, invalide ou expiré'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
       security:
       - OAuth2AuthorizationCodeBearer: []
   /structures:
@@ -56,12 +62,24 @@ paths:
           content:
             application/json:
               schema: {}
-        '422':
-          description: Validation Error
+        '401':
+          description: '`non_authentifie` : jeton absent, invalide ou expiré'
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/Erreur'
+        '403':
+          description: '`interdit` : rôle ou périmètre insuffisant'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+        '422':
+          description: '`donnees_invalides` : le détail de chaque champ est dans `champs`'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
   /postes:
     get:
       tags:
@@ -85,12 +103,24 @@ paths:
           content:
             application/json:
               schema: {}
-        '422':
-          description: Validation Error
+        '401':
+          description: '`non_authentifie` : jeton absent, invalide ou expiré'
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/Erreur'
+        '403':
+          description: '`interdit` : rôle ou périmètre insuffisant'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+        '422':
+          description: '`donnees_invalides` : le détail de chaque champ est dans `champs`'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
   /agents:
     get:
       tags:
@@ -114,12 +144,30 @@ paths:
           content:
             application/json:
               schema: {}
-        '422':
-          description: Validation Error
+        '401':
+          description: '`non_authentifie` : jeton absent, invalide ou expiré'
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/Erreur'
+        '403':
+          description: '`interdit` : rôle ou périmètre insuffisant'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+        '422':
+          description: '`donnees_invalides` : le détail de chaque champ est dans `champs`'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+        '503':
+          description: '`service_indisponible` : Keycloak ou MAS ne répond pas'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
     post:
       tags:
       - Agents
@@ -139,12 +187,36 @@ paths:
           content:
             application/json:
               schema: {}
-        '422':
-          description: Validation Error
+        '401':
+          description: '`non_authentifie` : jeton absent, invalide ou expiré'
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/Erreur'
+        '403':
+          description: '`interdit` : rôle ou périmètre insuffisant'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+        '409':
+          description: '`matricule_existant` : ce matricule est déjà utilisé'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+        '422':
+          description: '`donnees_invalides` : le détail de chaque champ est dans `champs`'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+        '503':
+          description: '`service_indisponible` : Keycloak ou MAS ne répond pas'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
   /agents/{matricule}:
     get:
       tags:
@@ -166,12 +238,36 @@ paths:
           content:
             application/json:
               schema: {}
-        '422':
-          description: Validation Error
+        '401':
+          description: '`non_authentifie` : jeton absent, invalide ou expiré'
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/Erreur'
+        '403':
+          description: '`interdit` : rôle ou périmètre insuffisant'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+        '404':
+          description: '`introuvable` : aucun agent ne porte ce matricule'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+        '422':
+          description: '`donnees_invalides` : le détail de chaque champ est dans `champs`'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+        '503':
+          description: '`service_indisponible` : Keycloak ou MAS ne répond pas'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
   /agents/{matricule}/fiche-enrolement:
     get:
       tags:
@@ -192,17 +288,48 @@ paths:
           description: Successful Response
           content:
             application/pdf: {}
-        '422':
-          description: Validation Error
+        '401':
+          description: '`non_authentifie` : jeton absent, invalide ou expiré'
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/Erreur'
+        '403':
+          description: '`interdit` : rôle ou périmètre insuffisant'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+        '404':
+          description: '`introuvable` : aucun agent ne porte ce matricule'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+        '409':
+          description: '`deja_active` : l''agent a déjà activé son compte ; `compte_revoque`
+            : le compte est révoqué'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+        '422':
+          description: '`donnees_invalides` : le détail de chaque champ est dans `champs`'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+        '503':
+          description: '`service_indisponible` : Keycloak ou MAS ne répond pas'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
   /agents/{matricule}/revocation:
     post:
       tags:
       - Agents
-      summary: 'Révoquer : Keycloak bloqué, sessions MAS fermées'
+      summary: 'Révoquer : connexion bloquée, toutes les sessions fermées'
       operationId: revoquer_agents__matricule__revocation_post
       security:
       - OAuth2AuthorizationCodeBearer: []
@@ -227,12 +354,45 @@ paths:
           content:
             application/json:
               schema: {}
-        '422':
-          description: Validation Error
+        '401':
+          description: '`non_authentifie` : jeton absent, invalide ou expiré'
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/Erreur'
+        '403':
+          description: '`interdit` : rôle ou périmètre insuffisant'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+        '404':
+          description: '`introuvable` : aucun agent ne porte ce matricule'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+        '409':
+          description: '`auto_revocation` : un administrateur ne peut pas révoquer
+            son propre compte'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+        '422':
+          description: '`donnees_invalides` : le détail de chaque champ est dans `champs`'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+        '503':
+          description: '`service_indisponible` : Keycloak ne répond pas ; `revocation_partielle`
+            : compte bloqué dans Keycloak, mais MAS n''a pas répondu (relancer la
+            révocation)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
   /agents/{matricule}/reactivation:
     post:
       tags:
@@ -262,12 +422,36 @@ paths:
           content:
             application/json:
               schema: {}
-        '422':
-          description: Validation Error
+        '401':
+          description: '`non_authentifie` : jeton absent, invalide ou expiré'
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/Erreur'
+        '403':
+          description: '`interdit` : rôle ou périmètre insuffisant'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+        '404':
+          description: '`introuvable` : aucun agent ne porte ce matricule'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+        '422':
+          description: '`donnees_invalides` : le détail de chaque champ est dans `champs`'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+        '503':
+          description: '`service_indisponible` : Keycloak ou MAS ne répond pas'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
   /audit:
     get:
       tags:
@@ -300,12 +484,24 @@ paths:
           content:
             application/json:
               schema: {}
-        '422':
-          description: Validation Error
+        '401':
+          description: '`non_authentifie` : jeton absent, invalide ou expiré'
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/Erreur'
+        '403':
+          description: '`interdit` : rôle ou périmètre insuffisant'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+        '422':
+          description: '`donnees_invalides` : le détail de chaque champ est dans `champs`'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
 components:
   schemas:
     AffectationEntree:
@@ -344,15 +540,30 @@ components:
       additionalProperties: false
       type: object
       title: AnnuaireEntree
-    HTTPValidationError:
+    Erreur:
       properties:
-        detail:
-          items:
-            $ref: '#/components/schemas/ValidationError'
-          type: array
-          title: Detail
+        message:
+          type: string
+          title: Message
+          description: Message en français, à afficher tel quel
+        code:
+          type: string
+          title: Code
+          description: Code stable, à tester par le portail
+        champs:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+          - type: 'null'
+          title: Champs
+          description: Erreur de chaque champ refusé (422 seulement)
       type: object
-      title: HTTPValidationError
+      required:
+      - message
+      - code
+      title: Erreur
+      description: Format commun de toutes les erreurs de l'API.
     IdentiteEntree:
       properties:
         matricule:
@@ -454,32 +665,6 @@ components:
       - direction
       - service
       title: ProfilEntree
-    ValidationError:
-      properties:
-        loc:
-          items:
-            anyOf:
-            - type: string
-            - type: integer
-          type: array
-          title: Location
-        msg:
-          type: string
-          title: Message
-        type:
-          type: string
-          title: Error Type
-        input:
-          title: Input
-        ctx:
-          type: object
-          title: Context
-      type: object
-      required:
-      - loc
-      - msg
-      - type
-      title: ValidationError
   securitySchemes:
     OAuth2AuthorizationCodeBearer:
       type: oauth2

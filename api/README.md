@@ -54,7 +54,7 @@ Réponse 201 : `{"matricule", "matrix_id", "etat", "enrolement", "cree_le"}`. L'
 **Erreurs** : `{"message": "...", "code": "...", "champs": {"identite.matricule": "Format invalide."}}`, en français. Les codes possibles :
 - `non_authentifie` (401) et `interdit` (403) ;
 - `introuvable` (404) et `donnees_invalides` (422) ;
-- `matricule_existant`, `deja_active` et `compte_revoque` (409) ;
+- `matricule_existant`, `deja_active`, `compte_revoque` et `auto_revocation` (409) ;
 - `service_indisponible` et `revocation_partielle` (503).
 
 ## Enrôlement
@@ -67,14 +67,17 @@ Réponse 201 : `{"matricule", "matrix_id", "etat", "enrolement", "cree_le"}`. L'
 ## Révocation
 
 `POST /agents/{matricule}/revocation`, avec un corps facultatif `{"motif": "..."}` :
-1. **Keycloak** : compte désactivé, attribut `etat` à `revoque`, sessions fermées. Aucune connexion n'est plus possible.
-2. **MAS** : compte verrouillé, puis toutes ses sessions sont fermées. L'application affiche « Device removed » en deux minutes au plus.
+1. **Keycloak** : compte désactivé, attribut `etat` à `revoque`. Aucune nouvelle connexion n'est possible.
+2. **MAS** : compte verrouillé, puis toutes ses sessions fermées : applications, navigateur et jetons personnels qui agissent en son nom. L'application affiche « Device removed » en deux minutes au plus.
+3. **Keycloak** : ses propres sessions fermées.
+
+Réponse : `{"matricule", "etat": "revoque", "sessions_fermees"}`, le nombre de sessions MAS fermées. Les sessions MAS sont fermées avant celles de Keycloak : sinon Keycloak prévient MAS, qui ferme lui-même les sessions ouvertes depuis cette connexion, et le nombre renvoyé ne compte plus que le reste.
 
 Si MAS ne répond pas, l'API renvoie 503 `revocation_partielle` : le compte est déjà bloqué dans Keycloak, et la révocation peut être relancée sans risque.
 
 ## Journal d'audit
 
-Chaque création, émission de fiche, révocation et réactivation est inscrite, ainsi que chaque refus d'accès à ces actions. Une ligne indique l'auteur, l'action, la cible, le ministère, le résultat et le détail. La table est en ajout seul : un déclencheur PostgreSQL refuse toute modification et toute suppression.
+Chaque création, émission de fiche, révocation et réactivation est inscrite, ainsi que chaque refus d'accès à ces actions. Une ligne indique l'auteur, l'action, la cible, le ministère, le résultat et le détail. La table est en ajout seul : des déclencheurs PostgreSQL refusent toute modification et toute suppression, y compris le vidage d'un coup (`TRUNCATE`). Limite : un administrateur de la base peut retirer ces déclencheurs ; en production, l'API se connecterait avec un rôle qui n'a que les droits d'ajout et de lecture sur cette table.
 
 ## Brancher le portail
 

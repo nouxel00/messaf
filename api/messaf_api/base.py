@@ -56,7 +56,8 @@ CREATE TABLE IF NOT EXISTS audit (
     detail     jsonb
 );
 
--- Le journal d'audit est en ajout seul : ni modification ni suppression.
+-- Le journal d'audit est en ajout seul : ni modification ni suppression, ligne à ligne (UPDATE, DELETE)
+-- ou d'un coup (TRUNCATE, que les déclencheurs ligne à ligne ne voient pas).
 CREATE OR REPLACE FUNCTION audit_ajout_seul() RETURNS trigger AS $$
 BEGIN
     RAISE EXCEPTION 'Le journal d''audit est en ajout seul';
@@ -64,6 +65,9 @@ END $$ LANGUAGE plpgsql;
 DROP TRIGGER IF EXISTS audit_ajout_seul ON audit;
 CREATE TRIGGER audit_ajout_seul BEFORE UPDATE OR DELETE ON audit
     FOR EACH ROW EXECUTE FUNCTION audit_ajout_seul();
+DROP TRIGGER IF EXISTS audit_sans_vidage ON audit;
+CREATE TRIGGER audit_sans_vidage BEFORE TRUNCATE ON audit
+    FOR EACH STATEMENT EXECUTE FUNCTION audit_ajout_seul();
 """
 
 _pool: ConnectionPool | None = None
