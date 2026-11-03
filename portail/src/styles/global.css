@@ -1624,3 +1624,14 @@ code,
 .mt {
   margin-top: 16px;
 }
+
+/* Fonctions : un salon par ligne, avec son niveau de classification */
+.ligne-salon {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.ligne-salon + .ligne-salon {
+  margin-top: 4px;
+}

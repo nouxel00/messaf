@@ -43,5 +43,9 @@ class BotFonction:
     def fin_interim(self, ordre: dict) -> dict:
         return self._ordre("/interne/fin-interim", ordre)
 
+    def ecrire_etats(self, salons: list[dict]) -> dict:
+        """Réécrit l'état bf.messaf.salon de salons existants (changement de classification, resynchronisation)."""
+        return self._ordre("/interne/etat", {"salons": salons})
+
 
 bot = BotFonction()

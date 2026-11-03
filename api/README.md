@@ -31,7 +31,7 @@ Elle lit dans le jeton :
 | `GET /audit?limite=100` | Journal d'audit | `auditeur` |
 | `GET /fonctions?ministere=sante` | Fonctions : titulaires, intérimaires, salons | `gestionnaire_rh`, `admin_ministere`, `superieur`, `auditeur` |
 | `GET /fonctions/{poste}` | Une fonction et l'historique de ses titulaires | idem |
-| `POST /fonctions/{poste}/salons` | Créer un salon de fonction avec une autre fonction (`{"interlocuteur": "DH-SANTE"}`) | `admin_ministere` |
+| `POST /fonctions/{poste}/salons` | Créer un salon de fonction avec une autre fonction (`{"interlocuteur": "DH-SANTE", "classification": "diffusion_restreinte"}`) | `admin_ministere` |
 | `POST /passations` | Passation de service : exécutée tout de suite si la date d'effet est atteinte, sinon planifiée | `admin_ministere` |
 | `GET /passations?ministere=sante` | Registre des passations | `admin_ministere`, `auditeur` |
 | `POST /passations/{id}/execution`, `POST /passations/{id}/annulation` | Relancer une passation en échec, annuler une passation planifiée | `admin_ministere` |
@@ -94,6 +94,10 @@ Si MAS ne répond pas, l'API renvoie 503 `revocation_partielle` : le compte est 
 L'API vérifie que l'entrant est un agent actif du ministère, habilité pour le poste (`habilitation` au moins égale à `habilitation_requise`), qu'il n'en est pas déjà titulaire et qu'aucune passation n'est déjà prévue. À la date d'effet (tout de suite, ou par le planificateur de l'API, qui passe chaque minute), le bot invite l'entrant dans les salons de la fonction avec leur historique, retire le sortant et remet le dossier de passation. **L'affectation ne change dans la base que si le bot a tout réussi** : sinon la passation est `echec`, et `POST /passations/{id}/execution` la relance sans risque.
 
 C'est une mutation : l'entrant quitte son poste actuel, et les salons de cette fonction. Les dates sont comptées en jours ; deux passations le même jour sur le même poste ne laissent que la dernière affectation, le registre et le journal gardent les deux.
+
+## Salons classés
+
+Un salon de fonction a un niveau : `normal`, `diffusion_restreinte` ou `confidentiel`, au plus l'habilitation requise par chacune de ses deux fonctions. Seuls les agents habilités y sont invités, à la création comme lors d'un intérim ; un successeur l'est forcément, puisqu'il doit être habilité pour le poste. Le niveau est écrit dans l'état `bf.messaf.salon` ; dès la Diffusion restreinte, l'application bloque les captures d'écran et retire le transfert et la copie. Chaque minute, l'API réécrit l'état d'un salon dont la base a changé (niveau, titulaires, intérimaires). Avec `MESSAF_DEMO=1`, le salon DRH ↔ hôpitaux est en Diffusion restreinte et le salon DRH ↔ secrétariat général en Confidentiel.
 
 ## Absences et intérims
 

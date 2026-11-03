@@ -31,6 +31,9 @@ use tracing::{error, info, warn};
 
 use crate::matrice::Bot;
 
+/// Nom du bot dans les salons.
+const NOM_AFFICHE: &str = "Bot de fonction";
+
 struct Reglages {
     homeserveur: String,
     utilisateur: OwnedUserId,
@@ -121,6 +124,13 @@ async fn connecter(r: &Reglages) -> Result<Client> {
         .bootstrap_cross_signing_if_needed(None)
         .await
         .context("signature croisée du bot")?;
+    // Nom affiché dans les salons, à la place de l'identifiant « bot-fonction »
+    let compte = client.account();
+    if compte.get_display_name().await.ok().flatten().as_deref() != Some(NOM_AFFICHE)
+        && let Err(e) = compte.set_display_name(Some(NOM_AFFICHE)).await
+    {
+        warn!("nom affiché du bot : {e}");
+    }
     let complete = client
         .encryption()
         .cross_signing_status()
@@ -190,7 +200,14 @@ async fn sante(State(etat): State<Etat>) -> Response {
 async fn main() -> Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(
-            std::env::var("RUST_LOG").unwrap_or_else(|_| "info,matrix_sdk=warn,matrix_sdk_crypto=warn".into()),
+            // Sans les messages attendus de la bibliothèque : réglages de compte encore absents (404), pas de
+            // sauvegarde des clés sur le serveur (voulu), appareil pas encore publié au premier démarrage.
+            // Les échecs des ordres de l'API restent journalisés par le bot lui-même.
+            std::env::var("RUST_LOG").unwrap_or_else(|_| {
+                "info,matrix_sdk=warn,matrix_sdk_crypto=warn,matrix_sdk::http_client=off,\
+                 matrix_sdk_crypto::backups=error,matrix_sdk_crypto::identities=error"
+                    .into()
+            }),
         )
         .init();
     let r = Reglages::lire()?;
@@ -228,6 +245,10 @@ async fn main() -> Result<()> {
         .route(
             "/interne/fin-interim",
             post(|State(e): State<Etat>, Json(d)| async move { repondre(operations::fin_interim(&e.bot, d).await) }),
+        )
+        .route(
+            "/interne/etat",
+            post(|State(e): State<Etat>, Json(d)| async move { repondre(operations::ecrire_etats(&e.bot, d).await) }),
         )
         .route("/interne/sante", get(sante))
         .layer(middleware::from_fn_with_state(etat.clone(), autoriser))

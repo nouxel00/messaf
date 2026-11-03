@@ -27,8 +27,8 @@ const CLE_PASSATIONS = 'messaf.demo.passations.v1';
 const CLE_ABSENCES = 'messaf.demo.absences.v1';
 
 const SALONS: SalonFonction[] = [
-  { roomId: '!demo-drh-dh', nom: 'FCT-DRH-SANTE · DH-SANTE', poste: 'DRH-SANTE', interlocuteur: 'DH-SANTE' },
-  { roomId: '!demo-drh-sg', nom: 'FCT-DRH-SANTE · SG-SANTE', poste: 'DRH-SANTE', interlocuteur: 'SG-SANTE' },
+  { roomId: '!demo-drh-dh', nom: 'FCT-DRH-SANTE · DH-SANTE', poste: 'DRH-SANTE', interlocuteur: 'DH-SANTE', classification: 'diffusion_restreinte' },
+  { roomId: '!demo-drh-sg', nom: 'FCT-DRH-SANTE · SG-SANTE', poste: 'DRH-SANTE', interlocuteur: 'SG-SANTE', classification: 'confidentiel' },
 ];
 
 const aujourdhui = () => new Date().toISOString().slice(0, 10);

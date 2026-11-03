@@ -1,73 +1,74 @@
 # MESSAF – Messagerie sécurisée de l'administration du Faso
 
-Messagerie instantanée chiffrée de bout en bout, hébergée sur l'infrastructure de l'État et réservée aux agents enrôlés.
-Projet de l'équipe **Challengers** (Institut Supérieur de Génie Électrique du Burkina Faso) pour le sprint technique du Hackathon 226 – Édition 2026.
-
-> Dépôt en construction : ce README sera complété au fil du sprint (deux pages au maximum).
+Messagerie chiffrée de bout en bout, hébergée sur l'infrastructure de l'État et réservée aux agents enrôlés. Équipe **Challengers** (Institut Supérieur de Génie Électrique du Burkina Faso) : SANOU Tolo Thède Axel (infrastructure et sécurité), OUEDRAOGO Nebwaogo Lionnel (innovation et interfaces). Hackathon 226 – Édition 2026.
 
 ## Concept
 
-MESSAF suit les fonctions administratives, pas seulement les personnes. On écrit au « DRH du ministère de la Santé » ; en cas de mutation ou de congé, le successeur ou l'intérimaire reprend le fil, et le service continue.
+MESSAF suit les **fonctions administratives**, pas seulement les personnes : on écrit au « DRH du ministère de la Santé ». En cas de mutation ou de congé, le successeur ou l'intérimaire reprend le fil, avec son historique, et le service continue.
 
-## Organisation du dépôt
+## Architecture
 
-| Dossier | Contenu | Responsable |
-| --- | --- | --- |
-| `deploy/` | Docker Compose, configuration de Synapse, MAS, Keycloak et ntfy | Axel |
-| `api/` | API d'administration (Python) et `openapi.yaml` | Axel |
-| `portail/` | Portail d'administration (React) | Lionnel |
-| `bots/fonction/` | Bot de fonction : passations, intérims | Axel |
-| `bots/archives/` | Bot archiviste | Axel |
-| `tests/` | Tests automatisés des fonctions de sécurité | Axel |
-| `demo/` | Jeu de données fictif et script de chargement | Axel |
-| `docs/` | Note de pré-projet, note de sécurité | Axel et Lionnel |
+```mermaid
+flowchart LR
+    app["Application Android<br/>(fork d'Element X)"] -- "messages chiffrés" --> syn["Synapse"]
+    syn --> mas["MAS"] --> kc["Keycloak<br/>mot de passe + TOTP"]
+    portail["Portail"] --> api["API d'administration"] --> kc
+    api -- "ordres" --> bot["Bot de fonction"] -- "salons de fonction" --> syn
+```
 
-L'application Android est un fork d'Element X : [messaf-android](https://github.com/nouxel00/messaf-android).
+Synapse ne stocke que des messages chiffrés ; fédération et inscription fermées. MAS ouvre les sessions et confie l'identification à Keycloak. L'API (Python) enrôle, révoque, tient le registre des fonctions et le journal d'audit ; le portail (React) est cloisonné par rôle et par ministère ; le bot de fonction (Rust) exécute passations et intérims. Chiffrement Olm et Megolm (Matrix) par vodozemac, sans cryptographie maison : voir la [note de sécurité](docs/MESSAF_Note_de_securite.pdf).
+
+## Fonctionnalités démontrées
+
+- **Enrôlement** : code d'activation à usage unique ; mot de passe, TOTP et codes de secours imposés.
+- **Révocation** : compte bloqué, sessions fermées ; l'application se déconnecte en deux minutes au plus.
+- **Passation et intérim** (innovation principale) : le successeur reçoit les salons de la fonction, leur historique chiffré (MSC4268) et un dossier de passation ; le sortant est retiré. L'intérimaire, validé par le supérieur, reçoit les affaires en cours sans l'historique. Dans l'application, chaque auteur apparaît « en qualité de » sa fonction.
+- **Salons classés** (Diffusion restreinte, Confidentiel) : seuls les agents habilités y entrent ; captures d'écran bloquées, transfert et copie retirés. Code PIN de l'application obligatoire.
+- **Journal d'audit** en ajout seul, refus compris.
+
+Dossiers : `deploy/` (configuration), `api/`, `portail/`, `bots/fonction/`, `tests/`, `docs/`. Application : [messaf-android](https://github.com/nouxel00/messaf-android).
 
 ## Technologies et licences
 
-| Composant | Rôle | Licence | Projet |
-| --- | --- | --- | --- |
-| Synapse | Serveur Matrix | AGPL-3.0 | https://github.com/element-hq/synapse |
-| Element X Android | Application mobile (fork) | AGPL-3.0 | https://github.com/element-hq/element-x-android |
-| PostgreSQL | Base de données | PostgreSQL License | https://www.postgresql.org |
-| Keycloak | Identité, second facteur, rôles | Apache-2.0 | https://www.keycloak.org |
-| Matrix Authentication Service | Sessions des applications, relais vers Keycloak | AGPL-3.0 | https://github.com/element-hq/matrix-authentication-service |
-| FastAPI, httpx, PyJWT, psycopg, fpdf2 | API d'administration (détail dans `api/README.md`) | MIT, BSD, LGPL-3.0 | https://fastapi.tiangolo.com |
-| matrix-rust-sdk (matrix-sdk) | Bot de fonction : chiffrement, partage de l'historique avec le successeur | Apache-2.0 | https://github.com/matrix-org/matrix-rust-sdk |
-| tokio, axum | Bot de fonction : exécution asynchrone, API interne (détail dans `bots/fonction/README.md`) | MIT | https://github.com/tokio-rs/axum |
-| FreeOTP | Codes à usage unique | Apache-2.0 | https://freeotp.github.io |
-| libsodium | Chiffrement des archives | ISC | https://libsodium.org |
-| React | Portail d'administration | MIT | https://react.dev |
-| ntfy | Notifications Android (UnifiedPush) | Apache-2.0 / GPL-2.0 | https://github.com/binwiederhier/ntfy |
-| Docker Compose | Déploiement | Apache-2.0 | https://github.com/docker/compose |
+Détail des bibliothèques dans le README de chaque dossier.
 
-Toute nouvelle dépendance est ajoutée à ce tableau, avec sa licence et le lien de son projet.
+| Composant | Rôle | Licence |
+| --- | --- | --- |
+| [Synapse](https://github.com/element-hq/synapse) | Serveur Matrix | AGPL-3.0 |
+| [Element X Android](https://github.com/element-hq/element-x-android) | Application (fork) | AGPL-3.0 |
+| [Matrix Authentication Service](https://github.com/element-hq/matrix-authentication-service) | Sessions, relais vers Keycloak | AGPL-3.0 |
+| [Keycloak](https://www.keycloak.org) | Comptes, second facteur, rôles | Apache-2.0 |
+| [PostgreSQL](https://www.postgresql.org) | Bases de données | PostgreSQL |
+| [matrix-rust-sdk](https://github.com/matrix-org/matrix-rust-sdk), tokio, axum | Bot de fonction | Apache-2.0, MIT |
+| [FastAPI](https://fastapi.tiangolo.com), httpx, PyJWT, psycopg, fpdf2 | API d'administration | MIT, BSD, LGPL-3.0 |
+| [React](https://react.dev), keycloak-js | Portail | MIT, Apache-2.0 |
+| [ntfy](https://github.com/binwiederhier/ntfy) | Notifications sans Google | Apache-2.0 / GPL-2.0 |
+| [FreeOTP](https://freeotp.github.io) | Codes à usage unique | Apache-2.0 |
+| [Docker Compose](https://github.com/docker/compose) | Déploiement | Apache-2.0 |
 
-## Niveau d'engagement open source
+## Niveau d'engagement
 
-**Étendre et adapter** : MESSAF s'appuie sur Synapse et Element X. Le code de l'équipe est publié sous licence AGPL-3.0 (fichier `LICENSE`).
+**Étendre et adapter** : MESSAF s'appuie sur Synapse, MAS et Element X, et y ajoute ses composants. Code de l'équipe sous AGPL-3.0 (`LICENSE`).
 
 ## Installation
 
-À compléter. Objectif : une seule commande.
+Prérequis : Docker avec Compose v2, Node.js 20 ou plus, et pour l'application un téléphone Android avec `adb`.
 
 ```
-copy .env.example .env    # puis renseigner les mots de passe
+copy .env.example .env        (Linux : cp .env.example .env)
 docker compose up -d
 ```
 
-Détails, vérifications et connexion des téléphones : [deploy/README.md](deploy/README.md).
+Renseigner dans `.env` : `POSTGRES_PASSWORD`, `KEYCLOAK_ADMIN_PASSWORD`, `MESSAF_DEMO_PASSWORD` (12 caractères minimum). Portail : `cd portail`, créer `.env.local` ([portail/README.md](portail/README.md)), `npm install`, `npm run dev`, puis http://localhost:5173. Application : installer l'APK de [messaf-android](https://github.com/nouxel00/messaf-android/actions), lancer `deploy\relier-telephones.bat`, adresse `http://localhost:8008`. Vérifications : [deploy/README.md](deploy/README.md). Tests de sécurité (serveur aveugle, intrus, révocation) : `docker compose --profile tests run --rm tests` ([tests/README.md](tests/README.md)).
 
 ## Comptes de démonstration
 
-Uniquement des comptes fictifs : matricules `100001` à `100011`, mot de passe provisoire défini dans `.env`, code TOTP configuré à la première connexion. Voir [deploy/README.md](deploy/README.md#comptes-de-démonstration).
+Comptes fictifs : identifiant = matricule, mot de passe provisoire = `MESSAF_DEMO_PASSWORD`, TOTP à la première connexion. **100002** Paul Zongo, administrateur Santé (passations, révocation) · **100003** Mariam Traoré, RH (enrôlement, absences) · **100004** Jean Compaoré, supérieur (intérims) · **100005 à 100008** agents, dont Awa Ouédraogo (DRH), Issa Sawadogo et Moussa Kaboré · **100009** Salif Ouattara, auditeur · **100011** Boukary Nikéma, administrateur Finances (cloisonnement).
 
 ## Limites connues
 
-À compléter, en lien avec la note de sécurité.
-
-## Équipe
-
-- SANOU Tolo Thède Axel – infrastructure et sécurité
-- OUEDRAOGO Nebwaogo Lionnel – innovation et interfaces
+- Prototype local : HTTP sans TLS sur `localhost`, Keycloak en mode développement, un seul serveur.
+- Le bot de fonction détient les clés des salons de fonction : composant de confiance. L'historique n'est transmis qu'aux appareils vérifiés existant au moment de l'invitation.
+- Un administrateur de la base peut retirer les déclencheurs qui protègent le journal d'audit.
+- Le niveau de classification est fixé par salon et visible du serveur ; notifications et visionneuse de médias ne sont pas encore restreintes dans un salon classé.
+- Pas encore réalisés : bot archiviste, convocations, suivi des actions, classification par message, messages éphémères.

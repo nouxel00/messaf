@@ -284,7 +284,20 @@ export function FonctionsPage() {
                           ? f.interimaires.map((i) => `${i.nom} (jusqu'au ${formaterDate(i.jusquAu)})`).join(', ')
                           : '—'}
                       </td>
-                      <td title={f.salons.map((s) => s.nom).join('\n')}>{f.salons.length || '—'}</td>
+                      <td>
+                        {f.salons.length === 0
+                          ? '—'
+                          : f.salons.map((s) => (
+                              <div key={s.roomId} className="ligne-salon" title={s.nom}>
+                                <span className="mono">{s.poste === f.poste.code ? s.interlocuteur : s.poste}</span>
+                                {s.classification !== 'normal' && (
+                                  <span className={`badge ${s.classification === 'confidentiel' ? 'badge-rouge' : 'badge-or'}`}>
+                                    {LIBELLES_HABILITATION[s.classification]}
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                      </td>
                       <td style={{ textAlign: 'right' }}>
                         <button type="button" className="btn btn-secondaire btn-petit" onClick={() => setChoisie(f)}>
                           <ArrowLeftRight size={14} aria-hidden />

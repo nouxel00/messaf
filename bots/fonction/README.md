@@ -14,6 +14,7 @@ L'**API d'administration** décide : droits, habilitation, dates, registre des p
 | `POST /interne/passation` | Passation de service |
 | `POST /interne/interim` | Ouverture d'un intérim |
 | `POST /interne/fin-interim` | Clôture d'un intérim |
+| `POST /interne/etat` | Réécriture de l'état `bf.messaf.salon` de salons existants (niveau de classification, resynchronisation) |
 | `GET /interne/sante` | État du bot et de sa signature croisée |
 
 ## Passation de service
