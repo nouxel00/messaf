@@ -24,5 +24,11 @@ export const ROLES_CONSULTATION: readonly Role[] = ['gestionnaire_rh', 'admin_mi
 export const ROLES_REVOCATION: readonly Role[] = ['admin_ministere', 'super_admin'];
 /** Lecture du journal d'audit. */
 export const ROLES_AUDIT: readonly Role[] = ['auditeur', 'super_admin'];
+/** Passations de service (et salons de fonction). */
+export const ROLES_PASSATION: readonly Role[] = ['admin_ministere', 'super_admin'];
+/** Absences et intérims : déclaration (RH), validation (supérieur), suivi (administrateur). */
+export const ROLES_ABSENCES: readonly Role[] = ['gestionnaire_rh', 'superieur', 'admin_ministere', 'super_admin'];
+/** Déclarer l'absence d'un autre agent. */
+export const ROLES_DECLARATION_ABSENCE: readonly Role[] = ['gestionnaire_rh', 'super_admin'];
 /** Tout rôle qui ouvre au moins un espace du portail. */
-export const ROLES_PORTAIL: readonly Role[] = ['gestionnaire_rh', 'admin_ministere', 'auditeur', 'super_admin'];
+export const ROLES_PORTAIL: readonly Role[] = ['gestionnaire_rh', 'admin_ministere', 'superieur', 'auditeur', 'super_admin'];

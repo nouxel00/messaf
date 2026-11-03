@@ -1,0 +1,24 @@
+[package]
+name = "messaf-bot-fonction"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.96"
+license = "AGPL-3.0-or-later"
+description = "Bot de fonction de MESSAF : salons de fonction, passations de service, intérims"
+publish = false
+
+[dependencies]
+# Bibliothèque Matrix d'Element X : chiffrement (vodozemac), partage de l'historique à l'invitation (MSC4268)
+matrix-sdk = { version = "=0.19.1", features = ["bundled-sqlite"] }
+tokio = { version = "=1.53.3", features = ["macros", "rt-multi-thread", "signal"] }
+axum = { version = "=0.8.9", default-features = false, features = ["http1", "json", "tokio"] }
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.154"
+anyhow = "=1.0.104"
+tracing = "=0.1.44"
+tracing-subscriber = { version = "=0.3.23", features = ["env-filter"] }
+
+[profile.release]
+# Image plus petite ; la compilation reste raisonnable
+strip = true
+codegen-units = 4

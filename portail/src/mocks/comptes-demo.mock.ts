@@ -38,6 +38,15 @@ export const comptesDemo: CompteDemo[] = [
     usage: 'Révocation et réactivation des accès des agents de la Santé',
   },
   {
+    identifiant: '100004',
+    matricule: '100004',
+    nomComplet: 'Jean Compaoré',
+    roles: ['superieur'],
+    ministere: 'sante',
+    poste: 'Secrétaire général — Santé',
+    usage: "Validation des intérims des directeurs qu'il encadre",
+  },
+  {
     identifiant: '100009',
     matricule: '100009',
     nomComplet: 'Salif Ouattara',

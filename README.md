@@ -34,6 +34,8 @@ L'application Android est un fork d'Element X : [messaf-android](https://github.
 | Keycloak | Identité, second facteur, rôles | Apache-2.0 | https://www.keycloak.org |
 | Matrix Authentication Service | Sessions des applications, relais vers Keycloak | AGPL-3.0 | https://github.com/element-hq/matrix-authentication-service |
 | FastAPI, httpx, PyJWT, psycopg, fpdf2 | API d'administration (détail dans `api/README.md`) | MIT, BSD, LGPL-3.0 | https://fastapi.tiangolo.com |
+| matrix-rust-sdk (matrix-sdk) | Bot de fonction : chiffrement, partage de l'historique avec le successeur | Apache-2.0 | https://github.com/matrix-org/matrix-rust-sdk |
+| tokio, axum | Bot de fonction : exécution asynchrone, API interne (détail dans `bots/fonction/README.md`) | MIT | https://github.com/tokio-rs/axum |
 | FreeOTP | Codes à usage unique | Apache-2.0 | https://freeotp.github.io |
 | libsodium | Chiffrement des archives | ISC | https://libsodium.org |
 | React | Portail d'administration | MIT | https://react.dev |

@@ -42,6 +42,9 @@ class Reglages:
     serveur_matrix: str = _env("SYNAPSE_SERVER_NAME", "gov.bf")
     # Adresse du serveur à saisir dans l'application (imprimée sur la fiche d'enrôlement)
     adresse_serveur: str = _env("MESSAF_ADRESSE_SERVEUR", "http://localhost:8008")
+    # Bot de fonction : API interne joignable seulement dans Docker, protégée par un secret partagé
+    bot_url: str = _env("BOT_URL", "http://bot-fonction:8090")
+    bot_secret_fichier: str = _env("BOT_INTERNE_SECRET_FILE", "/secrets/bot_interne")
     # Jeu de données fictif : organigramme, postes et affectations des comptes de démonstration
     demo: bool = _env("MESSAF_DEMO", "0") == "1"
 
