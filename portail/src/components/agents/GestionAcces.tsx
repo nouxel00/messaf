@@ -134,7 +134,7 @@ export function GestionAcces({ agent, changement }: Props) {
         bloquee={envoi}
         actions={
           <>
-            <button type="button" className="btn btn-secondaire" onClick={fermer} disabled={envoi} data-autofocus>
+            <button type="button" className="btn btn-secondaire" onClick={fermer} disabled={envoi}>
               Annuler
             </button>
             <button
@@ -164,6 +164,7 @@ export function GestionAcces({ agent, changement }: Props) {
             </label>
             <textarea
               id={idMotif}
+              data-autofocus
               className="input textarea"
               value={motif}
               maxLength={MOTIF_MAX}
