@@ -19,6 +19,8 @@ export interface AuthService {
   deconnecter(): Promise<void>;
   /** Jeton d'accès à joindre aux appels de l'API (null en démonstration). */
   jeton(): Promise<string | null>;
+  /** Keycloak : prévient quand la session a pris fin (le portail revient alors à la connexion). */
+  surExpiration?(rappel: () => void): void;
 }
 
 export const authService: AuthService = config.modeAuth === 'keycloak' ? authKeycloak : authDemo;

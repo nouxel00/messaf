@@ -90,7 +90,7 @@ VITE_KEYCLOAK_URL=http://localhost:8180
 VITE_KEYCLOAK_REALM=messaf
 VITE_KEYCLOAK_CLIENT_ID=portail
 ```
-Keycloak accepte le portail sur `http://localhost:5173` et `http://localhost:5174`.
+Keycloak accepte le portail sur `http://localhost:5173` et `http://localhost:5174`. Le détail du raccordement (connexion, renouvellement du jeton, routes utilisées par chaque écran) est dans [portail/README.md](../portail/README.md).
 
 ## Données de démonstration
 

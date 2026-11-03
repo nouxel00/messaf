@@ -39,8 +39,8 @@ async function envoyer(chemin: string, options: OptionsRequete): Promise<Respons
 }
 
 /**
- * Le format des erreurs n'est pas encore fixé dans api/openapi.yaml : on lit prudemment
- * `message`/`detail`, `code` et `champs` s'ils existent.
+ * Erreurs de l'API (api/openapi.yaml, schéma Erreur) : `message` en français, `code` stable,
+ * `champs` pour les erreurs 422. `detail` et les messages par statut servent de repli.
  */
 async function lireErreur(reponse: Response): Promise<ApiError> {
   let corps: Record<string, unknown> = {};

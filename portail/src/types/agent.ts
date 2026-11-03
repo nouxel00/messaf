@@ -4,6 +4,9 @@ import type { EtatCompte, Habilitation } from './messaf';
 import type { Poste } from './position';
 import type { ProfilProfessionnel } from './profile';
 
+/** `en_attente` tant que l'agent n'a pas fait sa première connexion avec son code d'activation. */
+export type EtatEnrolement = 'en_attente' | 'termine';
+
 /**
  * Vue consolidée d'un agent, telle que le portail l'affiche.
  * Elle assemble les quatre objets du modèle MESSAF sans les fusionner.
@@ -15,6 +18,8 @@ export interface Agent {
   habilitation: Habilitation;
   /** Attribut Keycloak `etat`, quand il est connu. */
   etat?: EtatCompte;
+  /** Avancement de l'enrôlement, quand il est connu (API). */
+  enrolement?: EtatEnrolement;
   /** Identifiant Matrix : @m<matricule>:gov.bf */
   matrixId: string;
   /** Affectation en cours, si connue. */
