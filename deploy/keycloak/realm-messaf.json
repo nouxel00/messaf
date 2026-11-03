@@ -1,0 +1,670 @@
+{
+  "realm": "messaf",
+  "displayName": "MESSAF",
+  "displayNameHtml": "MESSAF – Messagerie sécurisée de l'administration",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "resetPasswordAllowed": false,
+  "rememberMe": false,
+  "loginWithEmailAllowed": false,
+  "duplicateEmailsAllowed": true,
+  "editUsernameAllowed": false,
+  "internationalizationEnabled": true,
+  "supportedLocales": [
+    "fr"
+  ],
+  "defaultLocale": "fr",
+  "passwordPolicy": "length(12) and notUsername and passwordHistory(3)",
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "failureFactor": 5,
+  "waitIncrementSeconds": 60,
+  "maxFailureWaitSeconds": 900,
+  "otpPolicyType": "totp",
+  "otpPolicyAlgorithm": "HmacSHA1",
+  "otpPolicyDigits": 6,
+  "otpPolicyPeriod": 30,
+  "otpPolicyLookAheadWindow": 1,
+  "requiredActions": [
+    {
+      "alias": "UPDATE_PASSWORD",
+      "name": "Update Password",
+      "providerId": "UPDATE_PASSWORD",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 10,
+      "config": {}
+    },
+    {
+      "alias": "CONFIGURE_TOTP",
+      "name": "Configure OTP",
+      "providerId": "CONFIGURE_TOTP",
+      "enabled": true,
+      "defaultAction": true,
+      "priority": 20,
+      "config": {}
+    },
+    {
+      "alias": "CONFIGURE_RECOVERY_AUTHN_CODES",
+      "name": "Recovery Authentication Codes",
+      "providerId": "CONFIGURE_RECOVERY_AUTHN_CODES",
+      "enabled": true,
+      "defaultAction": true,
+      "priority": 30,
+      "config": {}
+    }
+  ],
+  "roles": {
+    "realm": [
+      {
+        "name": "super_admin",
+        "description": "Administration globale de MESSAF"
+      },
+      {
+        "name": "admin_ministere",
+        "description": "Administration d'un ministère : révocation, passation"
+      },
+      {
+        "name": "gestionnaire_rh",
+        "description": "Enrôlement des agents"
+      },
+      {
+        "name": "superieur",
+        "description": "Validation des intérims et des absences"
+      },
+      {
+        "name": "auditeur",
+        "description": "Lecture du journal d'audit"
+      },
+      {
+        "name": "archiviste",
+        "description": "Consultation des archives"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "mas",
+      "name": "Messagerie MESSAF",
+      "description": "MAS (Matrix Authentication Service) : connexion des applications Matrix",
+      "protocol": "openid-connect",
+      "enabled": true,
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${MAS_CLIENT_SECRET}",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "frontchannelLogout": false,
+      "redirectUris": [
+        "http://localhost:8280/upstream/callback/01M6F9AS287SCBWPM3A4YBWFBV"
+      ],
+      "webOrigins": [],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "backchannel.logout.url": "http://mas:8080/upstream/backchannel-logout/01M6F9AS287SCBWPM3A4YBWFBV",
+        "backchannel.logout.session.required": "true",
+        "backchannel.logout.revoke.offline.tokens": "true"
+      },
+      "protocolMappers": [
+        {
+          "name": "matricule",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "matricule",
+            "claim.name": "matricule",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "habilitation",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "habilitation",
+            "claim.name": "habilitation",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "ministere",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "ministere",
+            "claim.name": "ministere",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "portail",
+      "name": "Portail d'administration MESSAF",
+      "description": "Pages web de Lionnel (Vite, http://localhost:5174). Client public : connexion avec PKCE, sans secret.",
+      "protocol": "openid-connect",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "frontchannelLogout": false,
+      "redirectUris": [
+        "http://localhost:5174/*"
+      ],
+      "webOrigins": [
+        "http://localhost:5174"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:5174/*"
+      },
+      "protocolMappers": [
+        {
+          "name": "matricule",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "matricule",
+            "claim.name": "matricule",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "habilitation",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "habilitation",
+            "claim.name": "habilitation",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "ministere",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "ministere",
+            "claim.name": "ministere",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "100001",
+      "enabled": true,
+      "firstName": "Admin",
+      "lastName": "National",
+      "attributes": {
+        "matricule": [
+          "100001"
+        ],
+        "ministere": [
+          "MTDPCE"
+        ],
+        "direction": [
+          "DGTD"
+        ],
+        "habilitation": [
+          "normal"
+        ],
+        "etat": [
+          "actif"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${MESSAF_DEMO_PASSWORD}",
+          "temporary": true
+        }
+      ],
+      "requiredActions": [
+        "UPDATE_PASSWORD",
+        "CONFIGURE_TOTP",
+        "CONFIGURE_RECOVERY_AUTHN_CODES"
+      ],
+      "realmRoles": [
+        "default-roles-messaf",
+        "super_admin"
+      ]
+    },
+    {
+      "username": "100002",
+      "enabled": true,
+      "firstName": "Paul",
+      "lastName": "Zongo",
+      "attributes": {
+        "matricule": [
+          "100002"
+        ],
+        "ministere": [
+          "Santé"
+        ],
+        "direction": [
+          "DSI"
+        ],
+        "habilitation": [
+          "normal"
+        ],
+        "etat": [
+          "actif"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${MESSAF_DEMO_PASSWORD}",
+          "temporary": true
+        }
+      ],
+      "requiredActions": [
+        "UPDATE_PASSWORD",
+        "CONFIGURE_TOTP",
+        "CONFIGURE_RECOVERY_AUTHN_CODES"
+      ],
+      "realmRoles": [
+        "default-roles-messaf",
+        "admin_ministere"
+      ]
+    },
+    {
+      "username": "100003",
+      "enabled": true,
+      "firstName": "Mariam",
+      "lastName": "Traoré",
+      "attributes": {
+        "matricule": [
+          "100003"
+        ],
+        "ministere": [
+          "Santé"
+        ],
+        "direction": [
+          "DRH"
+        ],
+        "habilitation": [
+          "normal"
+        ],
+        "etat": [
+          "actif"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${MESSAF_DEMO_PASSWORD}",
+          "temporary": true
+        }
+      ],
+      "requiredActions": [
+        "UPDATE_PASSWORD",
+        "CONFIGURE_TOTP",
+        "CONFIGURE_RECOVERY_AUTHN_CODES"
+      ],
+      "realmRoles": [
+        "default-roles-messaf",
+        "gestionnaire_rh"
+      ]
+    },
+    {
+      "username": "100004",
+      "enabled": true,
+      "firstName": "Jean",
+      "lastName": "Compaoré",
+      "attributes": {
+        "matricule": [
+          "100004"
+        ],
+        "ministere": [
+          "Santé"
+        ],
+        "direction": [
+          "Secrétariat général"
+        ],
+        "habilitation": [
+          "confidentiel"
+        ],
+        "etat": [
+          "actif"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${MESSAF_DEMO_PASSWORD}",
+          "temporary": true
+        }
+      ],
+      "requiredActions": [
+        "UPDATE_PASSWORD",
+        "CONFIGURE_TOTP",
+        "CONFIGURE_RECOVERY_AUTHN_CODES"
+      ],
+      "realmRoles": [
+        "default-roles-messaf",
+        "superieur"
+      ]
+    },
+    {
+      "username": "100005",
+      "enabled": true,
+      "firstName": "Awa",
+      "lastName": "Ouédraogo",
+      "attributes": {
+        "matricule": [
+          "100005"
+        ],
+        "ministere": [
+          "Santé"
+        ],
+        "direction": [
+          "DRH"
+        ],
+        "habilitation": [
+          "confidentiel"
+        ],
+        "etat": [
+          "actif"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${MESSAF_DEMO_PASSWORD}",
+          "temporary": true
+        }
+      ],
+      "requiredActions": [
+        "UPDATE_PASSWORD",
+        "CONFIGURE_TOTP",
+        "CONFIGURE_RECOVERY_AUTHN_CODES"
+      ],
+      "realmRoles": [
+        "default-roles-messaf"
+      ]
+    },
+    {
+      "username": "100006",
+      "enabled": true,
+      "firstName": "Issa",
+      "lastName": "Sawadogo",
+      "attributes": {
+        "matricule": [
+          "100006"
+        ],
+        "ministere": [
+          "Santé"
+        ],
+        "direction": [
+          "DRH"
+        ],
+        "habilitation": [
+          "confidentiel"
+        ],
+        "etat": [
+          "actif"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${MESSAF_DEMO_PASSWORD}",
+          "temporary": true
+        }
+      ],
+      "requiredActions": [
+        "UPDATE_PASSWORD",
+        "CONFIGURE_TOTP",
+        "CONFIGURE_RECOVERY_AUTHN_CODES"
+      ],
+      "realmRoles": [
+        "default-roles-messaf"
+      ]
+    },
+    {
+      "username": "100007",
+      "enabled": true,
+      "firstName": "Moussa",
+      "lastName": "Kaboré",
+      "attributes": {
+        "matricule": [
+          "100007"
+        ],
+        "ministere": [
+          "Santé"
+        ],
+        "direction": [
+          "Direction des hôpitaux"
+        ],
+        "habilitation": [
+          "diffusion_restreinte"
+        ],
+        "etat": [
+          "actif"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${MESSAF_DEMO_PASSWORD}",
+          "temporary": true
+        }
+      ],
+      "requiredActions": [
+        "UPDATE_PASSWORD",
+        "CONFIGURE_TOTP",
+        "CONFIGURE_RECOVERY_AUTHN_CODES"
+      ],
+      "realmRoles": [
+        "default-roles-messaf"
+      ]
+    },
+    {
+      "username": "100008",
+      "enabled": true,
+      "firstName": "Fatimata",
+      "lastName": "Diallo",
+      "attributes": {
+        "matricule": [
+          "100008"
+        ],
+        "ministere": [
+          "Santé"
+        ],
+        "direction": [
+          "Direction des hôpitaux"
+        ],
+        "habilitation": [
+          "normal"
+        ],
+        "etat": [
+          "actif"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${MESSAF_DEMO_PASSWORD}",
+          "temporary": true
+        }
+      ],
+      "requiredActions": [
+        "UPDATE_PASSWORD",
+        "CONFIGURE_TOTP",
+        "CONFIGURE_RECOVERY_AUTHN_CODES"
+      ],
+      "realmRoles": [
+        "default-roles-messaf"
+      ]
+    },
+    {
+      "username": "100009",
+      "enabled": true,
+      "firstName": "Salif",
+      "lastName": "Ouattara",
+      "attributes": {
+        "matricule": [
+          "100009"
+        ],
+        "ministere": [
+          "Santé"
+        ],
+        "direction": [
+          "Inspection générale"
+        ],
+        "habilitation": [
+          "normal"
+        ],
+        "etat": [
+          "actif"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${MESSAF_DEMO_PASSWORD}",
+          "temporary": true
+        }
+      ],
+      "requiredActions": [
+        "UPDATE_PASSWORD",
+        "CONFIGURE_TOTP",
+        "CONFIGURE_RECOVERY_AUTHN_CODES"
+      ],
+      "realmRoles": [
+        "default-roles-messaf",
+        "auditeur"
+      ]
+    },
+    {
+      "username": "100010",
+      "enabled": true,
+      "firstName": "Aminata",
+      "lastName": "Sanogo",
+      "attributes": {
+        "matricule": [
+          "100010"
+        ],
+        "ministere": [
+          "Santé"
+        ],
+        "direction": [
+          "Archives"
+        ],
+        "habilitation": [
+          "normal"
+        ],
+        "etat": [
+          "actif"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${MESSAF_DEMO_PASSWORD}",
+          "temporary": true
+        }
+      ],
+      "requiredActions": [
+        "UPDATE_PASSWORD",
+        "CONFIGURE_TOTP",
+        "CONFIGURE_RECOVERY_AUTHN_CODES"
+      ],
+      "realmRoles": [
+        "default-roles-messaf",
+        "archiviste"
+      ]
+    },
+    {
+      "username": "100011",
+      "enabled": true,
+      "firstName": "Boukary",
+      "lastName": "Nikéma",
+      "attributes": {
+        "matricule": [
+          "100011"
+        ],
+        "ministere": [
+          "Finances"
+        ],
+        "direction": [
+          "DSI"
+        ],
+        "habilitation": [
+          "normal"
+        ],
+        "etat": [
+          "actif"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${MESSAF_DEMO_PASSWORD}",
+          "temporary": true
+        }
+      ],
+      "requiredActions": [
+        "UPDATE_PASSWORD",
+        "CONFIGURE_TOTP",
+        "CONFIGURE_RECOVERY_AUTHN_CODES"
+      ],
+      "realmRoles": [
+        "default-roles-messaf",
+        "admin_ministere"
+      ]
+    }
+  ],
+  "components": {
+    "org.keycloak.userprofile.UserProfileProvider": [
+      {
+        "providerId": "declarative-user-profile",
+        "subComponents": {},
+        "config": {
+          "kc.user.profile.config": [
+            "{\"attributes\": [{\"name\": \"username\", \"displayName\": \"${username}\", \"multivalued\": false, \"validations\": {\"length\": {\"min\": 3, \"max\": 255}, \"username-prohibited-characters\": {}, \"up-username-not-idn-homograph\": {}}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}}, {\"name\": \"email\", \"displayName\": \"${email}\", \"multivalued\": false, \"validations\": {\"email\": {}, \"length\": {\"max\": 255}}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}}, {\"name\": \"firstName\", \"displayName\": \"${firstName}\", \"multivalued\": false, \"required\": {\"roles\": [\"admin\", \"user\"]}, \"validations\": {\"length\": {\"max\": 255}, \"person-name-prohibited-characters\": {}}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}}, {\"name\": \"lastName\", \"displayName\": \"${lastName}\", \"multivalued\": false, \"required\": {\"roles\": [\"admin\", \"user\"]}, \"validations\": {\"length\": {\"max\": 255}, \"person-name-prohibited-characters\": {}}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}}, {\"name\": \"matricule\", \"displayName\": \"Matricule\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}, \"multivalued\": false, \"validations\": {\"pattern\": {\"pattern\": \"^[0-9]{6}$\", \"error-message\": \"Le matricule compte 6 chiffres\"}}, \"required\": {\"roles\": [\"admin\"]}}, {\"name\": \"ministere\", \"displayName\": \"Ministère\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}, \"multivalued\": false, \"validations\": {\"length\": {\"max\": 120}}}, {\"name\": \"direction\", \"displayName\": \"Direction\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}, \"multivalued\": false, \"validations\": {\"length\": {\"max\": 120}}}, {\"name\": \"service\", \"displayName\": \"Service\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}, \"multivalued\": false, \"validations\": {\"length\": {\"max\": 120}}}, {\"name\": \"habilitation\", \"displayName\": \"Habilitation\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}, \"multivalued\": false, \"validations\": {\"options\": {\"options\": [\"normal\", \"diffusion_restreinte\", \"confidentiel\"]}}, \"required\": {\"roles\": [\"admin\"]}}, {\"name\": \"etat\", \"displayName\": \"État\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}, \"multivalued\": false, \"validations\": {\"options\": {\"options\": [\"actif\", \"suspendu\", \"revoque\"]}}, \"required\": {\"roles\": [\"admin\"]}}], \"groups\": [{\"name\": \"user-metadata\", \"displayHeader\": \"User metadata\", \"displayDescription\": \"Attributes, which refer to user metadata\"}]}"
+          ]
+        }
+      }
+    ]
+  }
+}

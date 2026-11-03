@@ -1,6 +1,7 @@
-# Configuration de Synapse pour MESSAF (jalon 0)
+# Configuration de Synapse pour MESSAF (jalon 1)
 # Aucun secret ici : le mot de passe de la base vient de la variable PGPASSWORD,
-# la clé de signature et le secret d'enregistrement sont générés dans /data au premier démarrage.
+# la clé de signature est générée dans /data au premier démarrage,
+# les autres secrets sont lus dans le volume /secrets (deploy/init/generer-secrets.py).
 
 # Domaine des identifiants (@matricule:gov.bf). Il ne pourra plus changer ensuite.
 server_name: "gov.bf"
@@ -30,7 +31,8 @@ database:
 log_config: "/config/log.config"
 media_store_path: /data/media_store
 signing_key_path: "/data/gov.bf.signing.key"
-registration_shared_secret_path: /data/registration_shared_secret
+macaroon_secret_key_path: /secrets/synapse_macaroon
+# Pas de secret d'enregistrement : aucun compte ne se crée en contournant Keycloak.
 
 # --- Fermeture aux serveurs extérieurs ---
 federation_domain_whitelist: []   # aucune fédération, avec personne
@@ -41,10 +43,16 @@ report_stats: false               # aucune statistique envoyée à l'extérieur
 enable_registration: false
 allow_guest_access: false
 
-# Jalon 0 : connexion par mot de passe pour les comptes de test.
-# Jalon 1 : passer à "enabled: false" quand Keycloak sera branché (OIDC).
+# --- Connexion déléguée à MAS, qui s'appuie sur Keycloak (mot de passe + code TOTP) ---
+# Synapse ne voit plus aucun mot de passe. MAS crée les comptes @m<matricule>:gov.bf
+# à la première connexion et vérifie chaque jeton d'accès.
 password_config:
+  enabled: false
+
+matrix_authentication_service:
   enabled: true
+  endpoint: http://mas:8080/
+  secret_path: /secrets/synapse_mas
 
 # --- Minimisation des métadonnées ---
 presence:

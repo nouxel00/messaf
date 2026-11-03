@@ -1,12 +1,24 @@
-# MESSAF - pile serveur du prototype (jalon 0)
+# MESSAF - pile serveur du prototype (jalon 1)
 # Démarrage depuis la racine du dépôt :  docker compose up -d
-# Les mots de passe sont lus dans le fichier .env (jamais versionné).
+# Les mots de passe sont lus dans le fichier .env (jamais versionné) ;
+# les secrets internes sont générés au premier démarrage dans le volume "secrets".
+#
+# Chaîne de connexion :  application -> Synapse -> MAS -> Keycloak (mot de passe + code TOTP)
 
 name: messaf
 
 services:
 
-  # Base de données commune : une base "synapse" et une base "keycloak"
+  # Génère une seule fois les secrets internes (Synapse <-> MAS, MAS <-> Keycloak, clés de MAS)
+  secrets:
+    image: ghcr.io/element-hq/synapse:v1.164.1
+    entrypoint: ["python3", "/init/generer-secrets.py"]
+    volumes:
+      - ./deploy/init:/init:ro
+      - secrets:/secrets
+    restart: "no"
+
+  # Base de données commune : bases "synapse", "keycloak" et "mas"
   postgres:
     image: postgres:17-alpine
     restart: unless-stopped
@@ -23,13 +35,15 @@ services:
       retries: 10
     # Aucun port publié : seule la pile interne y accède.
 
-  # Serveur Matrix : ne stocke que des messages chiffrés
+  # Serveur Matrix : ne stocke que des messages chiffrés, ne voit aucun mot de passe
   synapse:
     image: ghcr.io/element-hq/synapse:v1.164.1
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
+      secrets:
+        condition: service_completed_successfully
     environment:
       # Mot de passe de la base, lu par le pilote PostgreSQL (absent du fichier de configuration)
       PGPASSWORD: ${POSTGRES_PASSWORD}
@@ -38,27 +52,81 @@ services:
     volumes:
       - ./deploy/synapse:/config:ro
       - synapse_data:/data
+      - secrets:/secrets:ro
     ports:
       # API client uniquement. Le port de fédération (8448) n'est volontairement pas publié.
       - "8008:8008"
 
-  # Identité : comptes, second facteur, rôles (branché à Synapse au jalon 1)
-  keycloak:
-    image: quay.io/keycloak/keycloak:26.8.1
+  # Sessions des applications Matrix ; identification déléguée à Keycloak
+  mas:
+    image: ghcr.io/element-hq/matrix-authentication-service:1.27.1
     restart: unless-stopped
-    command: start-dev
+    command: ["server", "--config", "/config/config.yaml"]
     depends_on:
       postgres:
         condition: service_healthy
+      secrets:
+        condition: service_completed_successfully
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./deploy/mas:/config:ro
+      - secrets:/secrets:ro
+    ports:
+      - "8280:8080"
+
+  # Identité : comptes, mot de passe, code TOTP, codes de secours, rôles
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.1
+    restart: unless-stopped
+    # Le secret du client « mas » est lu dans le volume des secrets, puis le domaine
+    # « messaf » est importé au premier démarrage (ignoré s'il existe déjà).
+    entrypoint: ["/bin/bash", "-c", "export MAS_CLIENT_SECRET=$$(cat /secrets/keycloak_mas) && exec /opt/keycloak/bin/kc.sh start-dev --import-realm"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      secrets:
+        condition: service_completed_successfully
     environment:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
       KC_DB_USERNAME: messaf
       KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      KC_DB_POOL_MAX_SIZE: "20"
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Renseignez KEYCLOAK_ADMIN_PASSWORD dans .env}
+      # Adresse vue par les navigateurs ; MAS l'appelle en interne sur keycloak:8080
+      KC_HOSTNAME: http://localhost:8180
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HEALTH_ENABLED: "true"
+      # Mot de passe provisoire des comptes fictifs (changé à la première connexion)
+      MESSAF_DEMO_PASSWORD: ${MESSAF_DEMO_PASSWORD:?Renseignez MESSAF_DEMO_PASSWORD dans .env}
+    volumes:
+      - ./deploy/keycloak/realm-messaf.json:/opt/keycloak/data/import/realm-messaf.json:ro
+      - secrets:/secrets:ro
+    healthcheck:
+      # L'image de Keycloak n'a ni curl ni wget : requête HTTP en bash pur sur le port de gestion
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/9000 && printf 'GET /health/ready HTTP/1.0\\r\\n\\r\\n' >&3 && read -r statut <&3 && [[ $$statut == *' 200 '* ]]"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
     ports:
       - "8180:8080"
+
+  # Réglages que l'import du domaine ne sait pas faire (codes de secours à la connexion)
+  keycloak-config:
+    image: quay.io/keycloak/keycloak:26.8.1
+    entrypoint: ["/bin/bash", "/config/configurer.sh"]
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+    volumes:
+      - ./deploy/keycloak/configurer.sh:/config/configurer.sh:ro
+    restart: "no"
 
   # Notifications Android sans Google (UnifiedPush), branchées au jalon 4
   ntfy:
@@ -77,3 +145,4 @@ volumes:
   postgres_data:
   synapse_data:
   ntfy_cache:
+  secrets:

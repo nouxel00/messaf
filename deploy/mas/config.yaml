@@ -1,0 +1,102 @@
+# Configuration de MAS (Matrix Authentication Service) pour MESSAF
+#
+# MAS gère les sessions des applications Matrix (Element X) et délègue
+# l'identification de l'agent à Keycloak : mot de passe + code TOTP.
+# Aucun secret ici : ils sont lus dans le volume /secrets (deploy/init/generer-secrets.py),
+# et le mot de passe de la base vient de la variable PGPASSWORD.
+
+http:
+  # Adresse vue par les téléphones (adb reverse tcp:8280 tcp:8280)
+  public_base: http://localhost:8280/
+  listeners:
+    - name: web
+      resources:
+        - name: discovery
+        - name: human
+        - name: oauth
+        - name: compat
+        - name: graphql
+        - name: assets
+      binds:
+        - address: "[::]:8080"
+    - name: interne
+      resources:
+        - name: health
+      binds:
+        - address: "[::]:8081"
+
+database:
+  host: postgres
+  port: 5432
+  username: messaf
+  database: mas
+  ssl_mode: disable
+
+matrix:
+  kind: synapse
+  homeserver: gov.bf
+  endpoint: http://synapse:8008
+  secret_file: /secrets/synapse_mas
+
+secrets:
+  encryption_file: /secrets/mas_chiffrement
+  keys_dir: /secrets/mas_cles
+
+# Aucun mot de passe local : la seule porte d'entrée est Keycloak.
+# Avec un seul fournisseur, MAS y redirige directement.
+passwords:
+  enabled: false
+
+# L'identité d'un agent vient de Keycloak (donc de la DRH) : il ne la modifie pas lui-même.
+account:
+  email_change_allowed: false
+  displayname_change_allowed: false
+  account_deactivation_allowed: false
+
+branding:
+  service_name: MESSAF
+
+policy:
+  data:
+    registration:
+      # Seuls les identifiants prévus peuvent être créés : m + matricule à 6 chiffres,
+      # et les deux comptes techniques des bots.
+      allowed_usernames:
+        regexes: ["^m[0-9]{6}$", "^bot-fonction$", "^archives$"]
+
+upstream_oauth2:
+  providers:
+    - id: 01M6F9AS287SCBWPM3A4YBWFBV
+      human_name: Keycloak MESSAF
+      client_id: mas
+      client_secret_file: /secrets/keycloak_mas
+      token_endpoint_auth_method: client_secret_basic
+      scope: "openid profile"
+      # Keycloak est vu à deux adresses : localhost:8180 par le navigateur du téléphone,
+      # keycloak:8080 par MAS à l'intérieur de Docker. La découverte automatique est donc
+      # remplacée par les adresses explicites ci-dessous.
+      issuer: http://localhost:8180/realms/messaf
+      discovery_mode: disabled
+      pkce_method: always
+      authorization_endpoint: http://localhost:8180/realms/messaf/protocol/openid-connect/auth
+      token_endpoint: http://keycloak:8080/realms/messaf/protocol/openid-connect/token
+      jwks_uri: http://keycloak:8080/realms/messaf/protocol/openid-connect/certs
+      # Révocation dans Keycloak : toutes les sessions MESSAF de l'agent sont fermées
+      on_backchannel_logout: logout_all
+      claims_imports:
+        subject:
+          template: "{{ user.sub }}"
+        skip_confirmation: true
+        localpart:
+          action: require
+          # L'identifiant Keycloak est le matricule, unique dans Keycloak : il désigne
+          # toujours le même compte Matrix @m<matricule>:gov.bf.
+          template: "m{{ user.preferred_username }}"
+          # Keycloak fait foi : un compte Keycloak recréé pour le même matricule
+          # retrouve son compte Matrix (et ses conversations) au lieu d'être refusé.
+          on_conflict: replace
+        displayname:
+          action: force
+          template: "{{ user.name }}"
+        email:
+          action: ignore

@@ -13,10 +13,10 @@ MESSAF suit les fonctions administratives, pas seulement les personnes. On écri
 
 | Dossier | Contenu | Responsable |
 | --- | --- | --- |
-| `deploy/` | Docker Compose, configuration de Synapse, Keycloak et ntfy | Axel |
+| `deploy/` | Docker Compose, configuration de Synapse, MAS, Keycloak et ntfy | Axel |
 | `api/` | API d'administration (Python) et `openapi.yaml` | Axel |
 | `portail/` | Portail d'administration (React) | Lionnel |
-| `bots/fonction/` | Bot de fonction : passations, intérims | Lionnel |
+| `bots/fonction/` | Bot de fonction : passations, intérims | Axel |
 | `bots/archives/` | Bot archiviste | Axel |
 | `tests/` | Tests automatisés des fonctions de sécurité | Axel |
 | `demo/` | Jeu de données fictif et script de chargement | Axel |
@@ -32,6 +32,7 @@ L'application Android est un fork d'Element X : [messaf-android](https://github.
 | Element X Android | Application mobile (fork) | AGPL-3.0 | https://github.com/element-hq/element-x-android |
 | PostgreSQL | Base de données | PostgreSQL License | https://www.postgresql.org |
 | Keycloak | Identité, second facteur, rôles | Apache-2.0 | https://www.keycloak.org |
+| Matrix Authentication Service | Sessions des applications, relais vers Keycloak | AGPL-3.0 | https://github.com/element-hq/matrix-authentication-service |
 | FreeOTP | Codes à usage unique | Apache-2.0 | https://freeotp.github.io |
 | libsodium | Chiffrement des archives | ISC | https://libsodium.org |
 | React | Portail d'administration | MIT | https://react.dev |
@@ -49,13 +50,15 @@ Toute nouvelle dépendance est ajoutée à ce tableau, avec sa licence et le lie
 À compléter. Objectif : une seule commande.
 
 ```
-cp .env.example .env    # puis renseigner les mots de passe
-docker compose -f deploy/docker-compose.yml up -d
+copy .env.example .env    # puis renseigner les mots de passe
+docker compose up -d
 ```
+
+Détails, vérifications et connexion des téléphones : [deploy/README.md](deploy/README.md).
 
 ## Comptes de démonstration
 
-À compléter. Uniquement des comptes fictifs.
+Uniquement des comptes fictifs : matricules `100001` à `100011`, mot de passe provisoire défini dans `.env`, code TOTP configuré à la première connexion. Voir [deploy/README.md](deploy/README.md#comptes-de-démonstration).
 
 ## Limites connues
 
