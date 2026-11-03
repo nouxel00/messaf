@@ -11,3 +11,6 @@ CREATE DATABASE keycloak OWNER messaf;
 
 -- MAS (Matrix Authentication Service) : sessions des applications Matrix
 CREATE DATABASE mas OWNER messaf;
+
+-- API d'administration : organigramme, postes, affectations, journal d'audit
+CREATE DATABASE api OWNER messaf;

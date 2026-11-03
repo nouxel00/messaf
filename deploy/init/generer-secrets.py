@@ -46,6 +46,10 @@ ecrire("synapse_mas", lambda: secrets.token_hex(32).encode())
 ecrire("synapse_macaroon", lambda: secrets.token_hex(32).encode())
 # Secret du client « mas » dans Keycloak
 ecrire("keycloak_mas", lambda: secrets.token_urlsafe(32).encode())
+# Secret du compte de service « api-messaf » dans Keycloak (gestion des comptes par l'API)
+ecrire("keycloak_api", lambda: secrets.token_urlsafe(32).encode())
+# Secret du client d'administration de l'API dans MAS (révocation)
+ecrire("mas_api", lambda: secrets.token_urlsafe(32).encode())
 # Clé de chiffrement de MAS : 32 octets en hexadécimal
 ecrire("mas_chiffrement", lambda: secrets.token_hex(32).encode())
 # Clés de signature des jetons émis par MAS : RSA obligatoire, ECDSA P-256 en plus

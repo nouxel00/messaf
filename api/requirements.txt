@@ -1,0 +1,11 @@
+# Versions figées. Licences : MIT (fastapi, uvicorn, pydantic), BSD (httpx), MIT (PyJWT),
+# Apache-2.0/BSD (cryptography), LGPL-3.0 (psycopg, fpdf2).
+fastapi==0.146.0
+uvicorn==0.54.0
+pydantic==2.14.1
+httpx==0.28.1
+PyJWT==2.15.1
+cryptography==50.0.2
+psycopg[binary]==3.3.6
+psycopg-pool==3.3.3
+fpdf2==2.8.9

@@ -1,0 +1,491 @@
+openapi: 3.1.0
+info:
+  title: API d'administration MESSAF
+  description: 'Enrôlement, révocation et audit des agents. Chaque appel exige un
+    jeton Keycloak du domaine messaf : dans cette page, bouton « Authorize », puis
+    connexion avec un compte du domaine (mot de passe et code TOTP). Fichier généré
+    depuis le code de l''API (FastAPI) : ne pas le modifier à la main.'
+  version: 1.0.0
+paths:
+  /sante:
+    get:
+      tags:
+      - Service
+      summary: L'API répond
+      operationId: sante_sante_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /moi:
+    get:
+      tags:
+      - Service
+      summary: L'utilisateur connecté, tel que l'API le voit
+      operationId: moi_moi_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - OAuth2AuthorizationCodeBearer: []
+  /structures:
+    get:
+      tags:
+      - Référentiel
+      summary: Le ministère et toutes ses directions et services
+      operationId: structures_structures_get
+      security:
+      - OAuth2AuthorizationCodeBearer: []
+      parameters:
+      - name: ministere
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ministere
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /postes:
+    get:
+      tags:
+      - Référentiel
+      summary: Les postes rattachés aux structures du ministère
+      operationId: postes_postes_get
+      security:
+      - OAuth2AuthorizationCodeBearer: []
+      parameters:
+      - name: ministere
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ministere
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /agents:
+    get:
+      tags:
+      - Agents
+      summary: Les agents d'un ministère
+      operationId: lister_agents_agents_get
+      security:
+      - OAuth2AuthorizationCodeBearer: []
+      parameters:
+      - name: ministere
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ministere
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - Agents
+      summary: Créer un agent (son enrôlement commence)
+      operationId: creer_agent_agents_post
+      security:
+      - OAuth2AuthorizationCodeBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NouvelAgent'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /agents/{matricule}:
+    get:
+      tags:
+      - Agents
+      summary: Un agent
+      operationId: obtenir_agent_agents__matricule__get
+      security:
+      - OAuth2AuthorizationCodeBearer: []
+      parameters:
+      - name: matricule
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Matricule
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /agents/{matricule}/fiche-enrolement:
+    get:
+      tags:
+      - Agents
+      summary: Fiche PDF avec un nouveau code d'activation (le précédent est annulé)
+      operationId: fiche_enrolement_agents__matricule__fiche_enrolement_get
+      security:
+      - OAuth2AuthorizationCodeBearer: []
+      parameters:
+      - name: matricule
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Matricule
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/pdf: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /agents/{matricule}/revocation:
+    post:
+      tags:
+      - Agents
+      summary: 'Révoquer : Keycloak bloqué, sessions MAS fermées'
+      operationId: revoquer_agents__matricule__revocation_post
+      security:
+      - OAuth2AuthorizationCodeBearer: []
+      parameters:
+      - name: matricule
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Matricule
+      requestBody:
+        content:
+          application/json:
+            schema:
+              anyOf:
+              - $ref: '#/components/schemas/Motif'
+              - type: 'null'
+              title: Corps
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /agents/{matricule}/reactivation:
+    post:
+      tags:
+      - Agents
+      summary: Réactiver un compte révoqué
+      operationId: reactiver_agents__matricule__reactivation_post
+      security:
+      - OAuth2AuthorizationCodeBearer: []
+      parameters:
+      - name: matricule
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Matricule
+      requestBody:
+        content:
+          application/json:
+            schema:
+              anyOf:
+              - $ref: '#/components/schemas/Motif'
+              - type: 'null'
+              title: Corps
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /audit:
+    get:
+      tags:
+      - Audit
+      summary: Journal d'audit, du plus récent au plus ancien
+      operationId: audit_audit_get
+      security:
+      - OAuth2AuthorizationCodeBearer: []
+      parameters:
+      - name: ministere
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ministere
+      - name: limite
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 1000
+          minimum: 1
+          default: 100
+          title: Limite
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    AffectationEntree:
+      properties:
+        poste:
+          type: string
+          maxLength: 64
+          minLength: 1
+          title: Poste
+        date_debut:
+          type: string
+          format: date
+          title: Date Debut
+        date_fin:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: Date Fin
+      additionalProperties: false
+      type: object
+      required:
+      - poste
+      - date_debut
+      title: AffectationEntree
+    AnnuaireEntree:
+      properties:
+        email:
+          type: boolean
+          title: Email
+          default: true
+        telephone:
+          type: boolean
+          title: Telephone
+          default: false
+      additionalProperties: false
+      type: object
+      title: AnnuaireEntree
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    IdentiteEntree:
+      properties:
+        matricule:
+          type: string
+          pattern: ^[0-9]{6}$
+          title: Matricule
+          description: 6 chiffres
+        nom:
+          type: string
+          maxLength: 100
+          minLength: 1
+          title: Nom
+        prenoms:
+          type: string
+          maxLength: 150
+          minLength: 1
+          title: Prenoms
+        email:
+          anyOf:
+          - type: string
+            maxLength: 254
+            pattern: ^[^@\s]+@[^@\s]+\.[^@\s]+$
+          - type: 'null'
+          title: Email
+        telephone:
+          anyOf:
+          - type: string
+            maxLength: 30
+            pattern: ^[0-9+ ().-]{6,30}$
+          - type: 'null'
+          title: Telephone
+      additionalProperties: false
+      type: object
+      required:
+      - matricule
+      - nom
+      - prenoms
+      title: IdentiteEntree
+    Motif:
+      properties:
+        motif:
+          anyOf:
+          - type: string
+            maxLength: 500
+          - type: 'null'
+          title: Motif
+      additionalProperties: false
+      type: object
+      title: Motif
+    NouvelAgent:
+      properties:
+        identite:
+          $ref: '#/components/schemas/IdentiteEntree'
+        profil:
+          $ref: '#/components/schemas/ProfilEntree'
+        habilitation:
+          type: string
+          enum:
+          - normal
+          - diffusion_restreinte
+          - confidentiel
+          title: Habilitation
+        affectation:
+          $ref: '#/components/schemas/AffectationEntree'
+      additionalProperties: false
+      type: object
+      required:
+      - identite
+      - profil
+      - habilitation
+      - affectation
+      title: NouvelAgent
+    ProfilEntree:
+      properties:
+        ministere:
+          type: string
+          maxLength: 64
+          minLength: 1
+          title: Ministere
+        direction:
+          type: string
+          maxLength: 64
+          minLength: 1
+          title: Direction
+        service:
+          type: string
+          maxLength: 64
+          minLength: 1
+          title: Service
+        annuaire:
+          $ref: '#/components/schemas/AnnuaireEntree'
+          default:
+            email: true
+            telephone: false
+      additionalProperties: false
+      type: object
+      required:
+      - ministere
+      - direction
+      - service
+      title: ProfilEntree
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+  securitySchemes:
+    OAuth2AuthorizationCodeBearer:
+      type: oauth2
+      flows:
+        authorizationCode:
+          scopes:
+            openid: Identité de l'utilisateur
+          authorizationUrl: http://localhost:8180/realms/messaf/protocol/openid-connect/auth
+          tokenUrl: http://localhost:8180/realms/messaf/protocol/openid-connect/token

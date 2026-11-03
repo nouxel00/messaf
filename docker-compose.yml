@@ -1,4 +1,4 @@
-# MESSAF - pile serveur du prototype (jalon 1)
+# MESSAF - pile serveur du prototype (jalon 1 : connexion sécurisée et API d'administration)
 # Démarrage depuis la racine du dépôt :  docker compose up -d
 # Les mots de passe sont lus dans le fichier .env (jamais versionné) ;
 # les secrets internes sont générés au premier démarrage dans le volume "secrets".
@@ -18,7 +18,7 @@ services:
       - secrets:/secrets
     restart: "no"
 
-  # Base de données commune : bases "synapse", "keycloak" et "mas"
+  # Base de données commune : bases "synapse", "keycloak", "mas" et "api"
   postgres:
     image: postgres:17-alpine
     restart: unless-stopped
@@ -79,9 +79,9 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:26.8.1
     restart: unless-stopped
-    # Le secret du client « mas » est lu dans le volume des secrets, puis le domaine
+    # Les secrets des clients « mas » et « api-messaf » sont lus dans le volume des secrets, puis le domaine
     # « messaf » est importé au premier démarrage (ignoré s'il existe déjà).
-    entrypoint: ["/bin/bash", "-c", "export MAS_CLIENT_SECRET=$$(cat /secrets/keycloak_mas) && exec /opt/keycloak/bin/kc.sh start-dev --import-realm"]
+    entrypoint: ["/bin/bash", "-c", "export MAS_CLIENT_SECRET=$$(cat /secrets/keycloak_mas) API_CLIENT_SECRET=$$(cat /secrets/keycloak_api) && exec /opt/keycloak/bin/kc.sh start-dev --import-realm"]
     depends_on:
       postgres:
         condition: service_healthy
@@ -114,7 +114,8 @@ services:
     ports:
       - "8180:8080"
 
-  # Réglages que l'import du domaine ne sait pas faire (codes de secours à la connexion)
+  # Réglages que l'import du domaine ne sait pas faire, ou qui doivent aussi s'appliquer
+  # à une installation existante (codes de secours, compte de service de l'API, portail)
   keycloak-config:
     image: quay.io/keycloak/keycloak:26.8.1
     entrypoint: ["/bin/bash", "/config/configurer.sh"]
@@ -126,7 +127,37 @@ services:
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
     volumes:
       - ./deploy/keycloak/configurer.sh:/config/configurer.sh:ro
+      - secrets:/secrets:ro
     restart: "no"
+
+  # API d'administration (Python) : agents, enrôlement, révocation, audit. Appelée par le portail.
+  api:
+    build: ./api
+    image: messaf-api:jalon1
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak-config:
+        condition: service_completed_successfully
+      mas:
+        condition: service_started
+    environment:
+      PGHOST: postgres
+      PGUSER: messaf
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      KEYCLOAK_ISSUER: http://localhost:8180/realms/messaf
+      KEYCLOAK_INTERNE: http://keycloak:8080
+      MAS_TOKEN_URL: http://mas:8080/oauth2/token
+      MAS_ADMIN_URL: http://mas:8081/api/admin/v1
+      API_ORIGINES: http://localhost:5173,http://localhost:5174
+      MESSAF_ADRESSE_SERVEUR: http://localhost:8008
+      # Organigramme, postes et affectations fictifs du document de démarrage
+      MESSAF_DEMO: "1"
+    volumes:
+      - secrets:/secrets:ro
+    ports:
+      - "8000:8000"
 
   # Notifications Android sans Google (UnifiedPush), branchées au jalon 4
   ntfy:

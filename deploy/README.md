@@ -10,9 +10,9 @@ Chaîne de connexion : **application → Synapse → MAS → Keycloak**. Synapse
 | `postgres/init.sql` | Crée les bases `synapse` (collation C), `keycloak` et `mas` au premier démarrage |
 | `synapse/homeserver.yaml` | Configuration de Synapse, connexion déléguée à MAS |
 | `synapse/log.config` | Journaux de Synapse vers la console (`docker compose logs`) |
-| `mas/config.yaml` | Configuration de MAS : Keycloak comme seul fournisseur d'identité |
-| `keycloak/realm-messaf.json` | Domaine `messaf` : 11 comptes fictifs, 6 rôles, TOTP et codes de secours obligatoires, clients `mas` et `portail` |
-| `keycloak/configurer.sh` | Accepte les codes de secours à la connexion (réglage impossible dans l'import) |
+| `mas/config.yaml` | Configuration de MAS : Keycloak comme seul fournisseur d'identité, API d'administration réservée à l'API MESSAF |
+| `keycloak/realm-messaf.json` | Domaine `messaf` : 11 comptes fictifs, 6 rôles, TOTP et codes de secours obligatoires, clients `mas`, `portail` et `api-messaf` |
+| `keycloak/configurer.sh` | Accepte les codes de secours à la connexion, crée le compte de service de l'API et l'audience du portail, y compris sur une installation existante |
 | `relier-telephones.bat` | Relie les téléphones branchés en USB aux ports 8008, 8280 et 8180 |
 
 ## Démarrer
@@ -40,6 +40,7 @@ Au premier démarrage, `secrets` et `keycloak-config` s'exécutent une fois puis
 | http://localhost:8180 | Console d'administration de Keycloak (domaine `messaf`) |
 | http://localhost:8280/login | MAS renvoie vers la page de connexion de Keycloak (domaine MESSAF) |
 | http://localhost:8090 | Page d'accueil de ntfy |
+| http://localhost:8000/docs | Documentation de l'API d'administration (les appels exigent un jeton du portail) |
 
 ## Comptes de démonstration
 
@@ -63,20 +64,16 @@ Pour enrôler le code TOTP, le plus simple est de faire la première connexion s
 
 ## Révoquer un agent
 
-La révocation se fait dans MAS, qui tient les sessions des applications :
+Depuis le portail, ou par l'API : `POST /agents/{matricule}/revocation`, avec le rôle `admin_ministere`. L'API bloque le compte dans Keycloak, puis le verrouille dans MAS et ferme toutes ses sessions. L'application affiche « Device removed » en deux minutes au plus, le délai de mémoire de Synapse. Voir [api/README.md](../api/README.md).
 
+Le bouton « Sign out » de Keycloak ne suffit pas : Keycloak ferme sa propre session après 30 minutes d'inactivité, et ne peut plus prévenir MAS ensuite.
+
+En secours, sans l'API :
 ```
 docker compose exec mas mas-cli manage lock-user m100008 --config /config/config.yaml
 docker compose exec mas mas-cli manage kill-sessions m100008 --config /config/config.yaml
 ```
-
-- `lock-user` bloque l'agent : toute tentative de connexion affiche « Account locked ».
-- `kill-sessions` détruit ses sessions : l'application affiche « Device removed » en deux minutes au plus (délai de mémoire de Synapse). Sans cette commande, un déverrouillage ranimerait les anciennes sessions.
-- Désactivez aussi l'agent dans Keycloak (domaine `messaf`, **Users**, interrupteur **Enabled**).
-
-Le bouton « Sign out » de Keycloak ne suffit pas : Keycloak ferme sa propre session après 30 minutes d'inactivité, et ne peut plus prévenir MAS ensuite. L'API d'administration enchaînera ces trois actions en un seul appel.
-
-Pour rendre l'accès : `mas-cli manage unlock-user m100008 --config /config/config.yaml`, réactivez l'agent dans Keycloak, puis l'agent se reconnecte.
+Désactivez aussi l'agent dans Keycloak (domaine `messaf`, **Users**, interrupteur **Enabled**). Pour rendre l'accès : `POST /agents/{matricule}/reactivation`, ou `mas-cli manage unlock-user` et la réactivation dans Keycloak.
 
 ## Arrêter
 
