@@ -57,9 +57,26 @@ Téléphone branché en USB : lancez `deploy\relier-telephones.bat`, puis saisis
 
 Le script relie trois ports, car le téléphone doit joindre Synapse (8008), MAS (8280) et Keycloak (8180). Relancez-le après chaque débranchement.
 
+Sur un téléphone qui a peu de mémoire (Redmi, par exemple), Android ferme la page de connexion ou l'application quand on part chercher le code TOTP. Ouvrez l'application d'authentification en **fenêtre flottante** pour lire le code sans quitter la page, et réglez l'application MESSAF sur « Aucune restriction » de batterie.
+
+Pour enrôler le code TOTP, le plus simple est de faire la première connexion sur l'ordinateur (http://localhost:8280/login) et de scanner le QR code avec le téléphone.
+
 ## Révoquer un agent
 
-Dans la console Keycloak : domaine `messaf`, **Users**, l'agent, onglet **Sessions**, **Sign out** (ou désactiver le compte). Keycloak prévient MAS, qui ferme toutes les sessions MESSAF de l'agent : son application est déconnectée immédiatement.
+La révocation se fait dans MAS, qui tient les sessions des applications :
+
+```
+docker compose exec mas mas-cli manage lock-user m100008 --config /config/config.yaml
+docker compose exec mas mas-cli manage kill-sessions m100008 --config /config/config.yaml
+```
+
+- `lock-user` bloque l'agent : toute tentative de connexion affiche « Account locked ».
+- `kill-sessions` détruit ses sessions : l'application affiche « Device removed » en deux minutes au plus (délai de mémoire de Synapse). Sans cette commande, un déverrouillage ranimerait les anciennes sessions.
+- Désactivez aussi l'agent dans Keycloak (domaine `messaf`, **Users**, interrupteur **Enabled**).
+
+Le bouton « Sign out » de Keycloak ne suffit pas : Keycloak ferme sa propre session après 30 minutes d'inactivité, et ne peut plus prévenir MAS ensuite. L'API d'administration enchaînera ces trois actions en un seul appel.
+
+Pour rendre l'accès : `mas-cli manage unlock-user m100008 --config /config/config.yaml`, réactivez l'agent dans Keycloak, puis l'agent se reconnecte.
 
 ## Arrêter
 
