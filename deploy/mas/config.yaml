@@ -89,7 +89,12 @@ upstream_oauth2:
         skip_confirmation: true
         localpart:
           action: require
-          template: "m{{ user.matricule }}"
+          # L'identifiant Keycloak est le matricule, unique dans Keycloak : il désigne
+          # toujours le même compte Matrix @m<matricule>:gov.bf.
+          template: "m{{ user.preferred_username }}"
+          # Keycloak fait foi : un compte Keycloak recréé pour le même matricule
+          # retrouve son compte Matrix (et ses conversations) au lieu d'être refusé.
+          on_conflict: replace
         displayname:
           action: force
           template: "{{ user.name }}"
