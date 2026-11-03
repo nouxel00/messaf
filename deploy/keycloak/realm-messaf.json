@@ -159,7 +159,7 @@
     {
       "clientId": "portail",
       "name": "Portail d'administration MESSAF",
-      "description": "Pages web de Lionnel (Vite, http://localhost:5174). Client public : connexion avec PKCE, sans secret.",
+      "description": "Portail d'administration (Vite, http://localhost:5173 ou 5174). Client public : connexion avec PKCE, sans secret.",
       "protocol": "openid-connect",
       "enabled": true,
       "publicClient": true,
@@ -169,14 +169,18 @@
       "serviceAccountsEnabled": false,
       "frontchannelLogout": false,
       "redirectUris": [
-        "http://localhost:5174/*"
+        "http://localhost:5173/*",
+        "http://localhost:5174/*",
+        "http://localhost:8000/docs/oauth2-redirect"
       ],
       "webOrigins": [
-        "http://localhost:5174"
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:8000"
       ],
       "attributes": {
         "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "http://localhost:5174/*"
+        "post.logout.redirect.uris": "http://localhost:5173/*##http://localhost:5174/*"
       },
       "protocolMappers": [
         {
@@ -223,8 +227,37 @@
             "userinfo.token.claim": "true",
             "introspection.token.claim": "true"
           }
+        },
+        {
+          "name": "audience-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "api-messaf",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
         }
       ]
+    },
+    {
+      "clientId": "api-messaf",
+      "name": "API d'administration MESSAF",
+      "description": "Compte de service de l'API : gestion des comptes d'agents uniquement.",
+      "protocol": "openid-connect",
+      "enabled": true,
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${API_CLIENT_SECRET}",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": true,
+      "frontchannelLogout": false,
+      "redirectUris": [],
+      "webOrigins": []
     }
   ],
   "users": [
@@ -238,16 +271,19 @@
           "100001"
         ],
         "ministere": [
-          "MTDPCE"
+          "numerique"
         ],
         "direction": [
-          "DGTD"
+          "numerique-dgtd"
         ],
         "habilitation": [
           "normal"
         ],
         "etat": [
           "actif"
+        ],
+        "service": [
+          "numerique-dgtd-splat"
         ]
       },
       "credentials": [
@@ -265,7 +301,8 @@
       "realmRoles": [
         "default-roles-messaf",
         "super_admin"
-      ]
+      ],
+      "email": "admin.national@numerique.messaf.example"
     },
     {
       "username": "100002",
@@ -277,16 +314,19 @@
           "100002"
         ],
         "ministere": [
-          "Santé"
+          "sante"
         ],
         "direction": [
-          "DSI"
+          "sante-dsi"
         ],
         "habilitation": [
           "normal"
         ],
         "etat": [
           "actif"
+        ],
+        "service": [
+          "sante-dsi-sinf"
         ]
       },
       "credentials": [
@@ -304,7 +344,8 @@
       "realmRoles": [
         "default-roles-messaf",
         "admin_ministere"
-      ]
+      ],
+      "email": "paul.zongo@sante.messaf.example"
     },
     {
       "username": "100003",
@@ -316,16 +357,19 @@
           "100003"
         ],
         "ministere": [
-          "Santé"
+          "sante"
         ],
         "direction": [
-          "DRH"
+          "sante-drh"
         ],
         "habilitation": [
           "normal"
         ],
         "etat": [
           "actif"
+        ],
+        "service": [
+          "sante-drh-sgc"
         ]
       },
       "credentials": [
@@ -343,7 +387,8 @@
       "realmRoles": [
         "default-roles-messaf",
         "gestionnaire_rh"
-      ]
+      ],
+      "email": "mariam.traore@sante.messaf.example"
     },
     {
       "username": "100004",
@@ -355,16 +400,19 @@
           "100004"
         ],
         "ministere": [
-          "Santé"
+          "sante"
         ],
         "direction": [
-          "Secrétariat général"
+          "sante-sg"
         ],
         "habilitation": [
           "confidentiel"
         ],
         "etat": [
           "actif"
+        ],
+        "service": [
+          "sante-sg-cab"
         ]
       },
       "credentials": [
@@ -382,7 +430,8 @@
       "realmRoles": [
         "default-roles-messaf",
         "superieur"
-      ]
+      ],
+      "email": "jean.compaore@sante.messaf.example"
     },
     {
       "username": "100005",
@@ -394,16 +443,19 @@
           "100005"
         ],
         "ministere": [
-          "Santé"
+          "sante"
         ],
         "direction": [
-          "DRH"
+          "sante-drh"
         ],
         "habilitation": [
           "confidentiel"
         ],
         "etat": [
           "actif"
+        ],
+        "service": [
+          "sante-drh-sgc"
         ]
       },
       "credentials": [
@@ -420,7 +472,8 @@
       ],
       "realmRoles": [
         "default-roles-messaf"
-      ]
+      ],
+      "email": "awa.ouedraogo@sante.messaf.example"
     },
     {
       "username": "100006",
@@ -432,16 +485,19 @@
           "100006"
         ],
         "ministere": [
-          "Santé"
+          "sante"
         ],
         "direction": [
-          "DRH"
+          "sante-drh"
         ],
         "habilitation": [
           "confidentiel"
         ],
         "etat": [
           "actif"
+        ],
+        "service": [
+          "sante-drh-sgc"
         ]
       },
       "credentials": [
@@ -458,7 +514,8 @@
       ],
       "realmRoles": [
         "default-roles-messaf"
-      ]
+      ],
+      "email": "issa.sawadogo@sante.messaf.example"
     },
     {
       "username": "100007",
@@ -470,16 +527,19 @@
           "100007"
         ],
         "ministere": [
-          "Santé"
+          "sante"
         ],
         "direction": [
-          "Direction des hôpitaux"
+          "sante-dh"
         ],
         "habilitation": [
           "diffusion_restreinte"
         ],
         "etat": [
           "actif"
+        ],
+        "service": [
+          "sante-dh-sah"
         ]
       },
       "credentials": [
@@ -496,7 +556,8 @@
       ],
       "realmRoles": [
         "default-roles-messaf"
-      ]
+      ],
+      "email": "moussa.kabore@sante.messaf.example"
     },
     {
       "username": "100008",
@@ -508,16 +569,19 @@
           "100008"
         ],
         "ministere": [
-          "Santé"
+          "sante"
         ],
         "direction": [
-          "Direction des hôpitaux"
+          "sante-dh"
         ],
         "habilitation": [
           "normal"
         ],
         "etat": [
           "actif"
+        ],
+        "service": [
+          "sante-dh-sah"
         ]
       },
       "credentials": [
@@ -534,7 +598,8 @@
       ],
       "realmRoles": [
         "default-roles-messaf"
-      ]
+      ],
+      "email": "fatimata.diallo@sante.messaf.example"
     },
     {
       "username": "100009",
@@ -546,16 +611,19 @@
           "100009"
         ],
         "ministere": [
-          "Santé"
+          "sante"
         ],
         "direction": [
-          "Inspection générale"
+          "sante-ig"
         ],
         "habilitation": [
           "normal"
         ],
         "etat": [
           "actif"
+        ],
+        "service": [
+          "sante-ig-sc"
         ]
       },
       "credentials": [
@@ -573,7 +641,8 @@
       "realmRoles": [
         "default-roles-messaf",
         "auditeur"
-      ]
+      ],
+      "email": "salif.ouattara@sante.messaf.example"
     },
     {
       "username": "100010",
@@ -585,16 +654,19 @@
           "100010"
         ],
         "ministere": [
-          "Santé"
+          "sante"
         ],
         "direction": [
-          "Archives"
+          "sante-arch"
         ],
         "habilitation": [
           "normal"
         ],
         "etat": [
           "actif"
+        ],
+        "service": [
+          "sante-arch-sc"
         ]
       },
       "credentials": [
@@ -612,7 +684,8 @@
       "realmRoles": [
         "default-roles-messaf",
         "archiviste"
-      ]
+      ],
+      "email": "aminata.sanogo@sante.messaf.example"
     },
     {
       "username": "100011",
@@ -624,16 +697,19 @@
           "100011"
         ],
         "ministere": [
-          "Finances"
+          "finances"
         ],
         "direction": [
-          "DSI"
+          "finances-dsi"
         ],
         "habilitation": [
           "normal"
         ],
         "etat": [
           "actif"
+        ],
+        "service": [
+          "finances-dsi-sinf"
         ]
       },
       "credentials": [
@@ -651,7 +727,20 @@
       "realmRoles": [
         "default-roles-messaf",
         "admin_ministere"
-      ]
+      ],
+      "email": "boukary.nikema@finances.messaf.example"
+    },
+    {
+      "username": "service-account-api-messaf",
+      "enabled": true,
+      "serviceAccountClientId": "api-messaf",
+      "clientRoles": {
+        "realm-management": [
+          "manage-users",
+          "view-users",
+          "query-users"
+        ]
+      }
     }
   ],
   "components": {

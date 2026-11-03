@@ -19,9 +19,11 @@ http:
         - name: assets
       binds:
         - address: "[::]:8080"
+    # Port interne à Docker (non publié) : santé et API d'administration, réservée à l'API MESSAF
     - name: interne
       resources:
         - name: health
+        - name: adminapi
       binds:
         - address: "[::]:8081"
 
@@ -56,8 +58,17 @@ account:
 branding:
   service_name: MESSAF
 
+# Client de l'API d'administration MESSAF : verrouillage des agents et fermeture de leurs sessions
+clients:
+  - client_id: 01M6FHNSXEF2QT59Y8491Q73C3
+    client_auth_method: client_secret_basic
+    client_secret_file: /secrets/mas_api
+
 policy:
   data:
+    # Seule l'API MESSAF peut obtenir les droits d'administration de MAS
+    admin_clients:
+      - 01M6FHNSXEF2QT59Y8491Q73C3
     registration:
       # Seuls les identifiants prévus peuvent être créés : m + matricule à 6 chiffres,
       # et les deux comptes techniques des bots.
