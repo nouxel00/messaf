@@ -15,14 +15,16 @@ export interface Referentiel {
 }
 
 /** Organigramme et postes du ministère, avec des accesseurs pratiques pour l'affichage. */
-export function useReferentiel(ministere: string) {
+export function useReferentiel(ministere: string, actif = true) {
   const etat = useAsync(
     () =>
-      Promise.all([
-        referentielService.structuresDuMinistere(ministere),
-        referentielService.postesDuMinistere(ministere),
-      ]),
-    [ministere],
+      actif
+        ? Promise.all([
+            referentielService.structuresDuMinistere(ministere),
+            referentielService.postesDuMinistere(ministere),
+          ])
+        : Promise.resolve(null),
+    [ministere, actif],
   );
 
   const referentiel = useMemo<Referentiel | undefined>(() => {

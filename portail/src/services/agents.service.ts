@@ -1,5 +1,5 @@
 import { config } from '@/config/env';
-import type { Agent, FiltreAgents, NouvelAgent, ResultatCreationAgent } from '@/types/agent';
+import type { Agent, FiltreAgents, NouvelAgent, ResultatCreationAgent, ResultatRevocation } from '@/types/agent';
 import { agentsApi } from './agents.api';
 import { agentsDemo } from './demo/agents.demo';
 
@@ -20,6 +20,10 @@ export interface AgentsService {
   creer(agent: NouvelAgent): Promise<ResultatCreationAgent>;
   /** Fiche d'enrôlement au format PDF. */
   ficheEnrolement(matricule: string): Promise<Blob>;
+  /** Révocation immédiate (rôle admin_ministere) : connexion bloquée, toutes les sessions fermées. */
+  revoquer(matricule: string, motif: string): Promise<ResultatRevocation>;
+  /** Rend l'accès à un compte révoqué ; ses anciennes sessions restent fermées. */
+  reactiver(matricule: string, motif: string): Promise<void>;
   /** Démonstration uniquement : efface les agents créés pendant les essais. */
   reinitialiserDemonstration?(): void;
 }

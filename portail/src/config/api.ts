@@ -12,6 +12,12 @@ export const routesApi = {
   agent,
   /** GET — fiche PDF d'enrôlement, avec un nouveau code d'activation (le précédent est annulé). */
   ficheEnrolement: (matricule: string) => `${agent(matricule)}/fiche-enrolement`,
+  /** POST — révoquer : connexion bloquée, toutes les sessions fermées. */
+  revocation: (matricule: string) => `${agent(matricule)}/revocation`,
+  /** POST — réactiver un compte révoqué. */
+  reactivation: (matricule: string) => `${agent(matricule)}/reactivation`,
+  /** GET — journal d'audit du ministère, du plus récent au plus ancien. */
+  audit: (ministere: string, limite: number) => `${parMinistere('/audit', ministere)}&limite=${limite}`,
   /** GET — le ministère et toutes ses directions et services. */
   structures: (ministere: string) => parMinistere('/structures', ministere),
   /** GET — les postes rattachés aux structures du ministère. */

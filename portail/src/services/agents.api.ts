@@ -13,6 +13,8 @@ import { versPoste, type PosteApi } from './referentiel.api';
  *   GET  /agents/{matricule}                  → obtenir(), matriculeDisponible()
  *   POST /agents                              → creer()
  *   GET  /agents/{matricule}/fiche-enrolement → ficheEnrolement()
+ *   POST /agents/{matricule}/revocation       → revoquer()
+ *   POST /agents/{matricule}/reactivation     → reactiver()
  * Le jeton Keycloak est joint par services/api.ts ; l'API vérifie le rôle et le ministère.
  */
 
@@ -172,5 +174,17 @@ export const agentsApi: AgentsService = {
 
   ficheEnrolement(matricule) {
     return api.blob(routesApi.ficheEnrolement(matricule), { accept: 'application/pdf' });
+  },
+
+  async revoquer(matricule, motif) {
+    const reponse = await api.json<{ etat: EtatCompte; sessions_fermees: number }>(routesApi.revocation(matricule), {
+      method: 'POST',
+      corps: { motif },
+    });
+    return { etat: reponse.etat, sessionsFermees: reponse.sessions_fermees };
+  },
+
+  async reactiver(matricule, motif) {
+    await api.json(routesApi.reactivation(matricule), { method: 'POST', corps: { motif } });
   },
 };

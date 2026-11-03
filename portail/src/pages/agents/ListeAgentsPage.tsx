@@ -11,6 +11,7 @@ import { useAgents } from '@/hooks/useAgents';
 import { agentsService } from '@/services/agents.service';
 import { ETATS_COMPTE, LIBELLES_ETAT } from '@/types/messaf';
 import { normaliser } from '@/utils/format';
+import { peutEnroler, peutRevoquer } from '@/utils/permissions';
 
 export function ListeAgentsPage() {
   const session = useSession();
@@ -21,6 +22,7 @@ export function ListeAgentsPage() {
   const [etat, setEtat] = useState('');
 
   const directions = referentiel?.enfants(session.ministere) ?? [];
+  const enroleur = peutEnroler(session);
 
   const filtres = useMemo(() => {
     const terme = normaliser(recherche);
@@ -50,12 +52,15 @@ export function ListeAgentsPage() {
           <p>
             {referentiel?.libelle(session.ministere) ?? session.ministere}
             {agentsService.simulation && ' · jeu de données fictif'}
+            {peutRevoquer(session) && ' · ouvrez la fiche d’un agent pour révoquer ou rendre son accès'}
           </p>
         </div>
-        <Link to="/agents/nouveau" className="btn btn-primaire">
-          <UserPlus size={17} aria-hidden />
-          Enregistrer un nouvel agent
-        </Link>
+        {enroleur && (
+          <Link to="/agents/nouveau" className="btn btn-primaire">
+            <UserPlus size={17} aria-hidden />
+            Enregistrer un nouvel agent
+          </Link>
+        )}
       </div>
 
       {erreur ? (
@@ -127,11 +132,11 @@ export function ListeAgentsPage() {
                   <button type="button" className="btn btn-secondaire btn-petit" onClick={effacer}>
                     Effacer les filtres
                   </button>
-                ) : (
+                ) : enroleur ? (
                   <Link to="/agents/nouveau" className="btn btn-primaire btn-petit">
                     Enregistrer un agent
                   </Link>
-                )
+                ) : undefined
               }
             >
               {filtreActif ? 'Vérifiez le matricule ou l’orthographe du nom.' : undefined}

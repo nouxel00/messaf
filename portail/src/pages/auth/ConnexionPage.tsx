@@ -141,17 +141,17 @@ export function ConnexionPage() {
           <Marque sousTitre="Messagerie Sécurisée de l'Administration du Faso" />
           <div>
             <h1>
-              Portail d'administration — <span>Espace RH</span>
+              Portail d'administration — <span>agents et accès</span>
             </h1>
             <p>
-              Enrôlement des agents publics dans MESSAF-BF : création de l'identité, du profil professionnel et de
-              l'affectation, puis remise de la fiche d'enrôlement.
+              Enrôlement des agents publics dans MESSAF-BF, révocation immédiate des accès et contrôle du journal
+              d'audit : chaque espace est réservé à son rôle.
             </p>
           </div>
           <ul className="points-cles">
             <li>
               <ShieldCheck size={18} aria-hidden />
-              <span>Espace réservé aux responsables RH habilités, limité à leur ministère.</span>
+              <span>Réservé aux responsables habilités (RH, administrateurs, auditeurs), limité à leur ministère.</span>
             </li>
             <li>
               <Users size={18} aria-hidden />
@@ -166,7 +166,7 @@ export function ConnexionPage() {
         <section className="connexion-formulaire">
           <div className="connexion-boite">
             <h2>Connexion</h2>
-            <p>Accès réservé aux responsables RH autorisés.</p>
+            <p>Accès réservé aux responsables habilités.</p>
             {config.modeAuth === 'demo' ? <FormulaireDemo /> : <ConnexionKeycloak />}
           </div>
         </section>

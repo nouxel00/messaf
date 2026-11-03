@@ -48,6 +48,8 @@ LECTEURS = ("gestionnaire_rh", "admin_ministere")
 ENROLEURS = ("gestionnaire_rh",)
 REVOCATEURS = ("admin_ministere",)
 AUDITEURS = ("auditeur",)
+# L'organigramme et les postes ne sont pas des données personnelles : l'auditeur les lit aussi
+LECTEURS_REFERENTIEL = LECTEURS + AUDITEURS
 
 # Erreurs décrites dans la documentation (/docs et openapi.yaml), toutes au format Erreur
 DESCRIPTIONS_ERREURS = {
@@ -254,14 +256,14 @@ def moi(utilisateur: Utilisateur = Depends(utilisateur_courant)):
 @app.get("/structures", tags=["Référentiel"], summary="Le ministère et toutes ses directions et services",
          responses=erreurs(401, 403, 422))
 def structures(ministere: str | None = Query(default=None), utilisateur: Utilisateur = Depends(utilisateur_courant)):
-    exiger_role(utilisateur, *LECTEURS)
+    exiger_role(utilisateur, *LECTEURS_REFERENTIEL)
     return base.structures_du_ministere(_ministere_demande(utilisateur, ministere))
 
 
 @app.get("/postes", tags=["Référentiel"], summary="Les postes rattachés aux structures du ministère",
          responses=erreurs(401, 403, 422))
 def postes(ministere: str | None = Query(default=None), utilisateur: Utilisateur = Depends(utilisateur_courant)):
-    exiger_role(utilisateur, *LECTEURS)
+    exiger_role(utilisateur, *LECTEURS_REFERENTIEL)
     return base.postes_du_ministere(_ministere_demande(utilisateur, ministere))
 
 
