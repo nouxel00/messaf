@@ -97,7 +97,7 @@ C'est une mutation : l'entrant quitte son poste actuel, et les salons de cette f
 
 ## Salons classés
 
-Un salon de fonction a un niveau : `normal`, `diffusion_restreinte` ou `confidentiel`, au plus l'habilitation requise par chacune de ses deux fonctions. Seuls les agents habilités y sont invités, à la création comme lors d'un intérim ; un successeur l'est forcément, puisqu'il doit être habilité pour le poste. Le niveau est écrit dans l'état `bf.messaf.salon` ; dès la Diffusion restreinte, l'application bloque les captures d'écran et retire le transfert et la copie. Chaque minute, l'API réécrit l'état d'un salon dont la base a changé (niveau, titulaires, intérimaires). Avec `MESSAF_DEMO=1`, le salon DRH ↔ hôpitaux est en Diffusion restreinte et le salon DRH ↔ secrétariat général en Confidentiel.
+Un salon de fonction a un niveau : `normal`, `diffusion_restreinte` ou `confidentiel`, au plus l'habilitation requise par chacune de ses deux fonctions. Seuls les agents habilités y sont invités, à la création comme lors d'un intérim ; un successeur l'est forcément, puisqu'il doit être habilité pour le poste. Le niveau est écrit dans l'état `bf.messaf.salon` ; dès la Diffusion restreinte, l'application bloque les captures d'écran et retire le transfert et la copie. Chaque minute, l'API réécrit l'état d'un salon dont la base a changé (niveau, titulaires, intérimaires). Avec `MESSAF_DEMO=1`, le salon DRH ↔ hôpitaux est de niveau normal et le salon DRH ↔ secrétariat général en Confidentiel.
 
 ## Absences et intérims
 
