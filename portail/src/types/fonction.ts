@@ -1,3 +1,4 @@
+import type { Habilitation } from './messaf';
 import type { Poste } from './position';
 
 /**
@@ -17,6 +18,8 @@ export interface SalonFonction {
   nom: string;
   poste: string;
   interlocuteur: string;
+  /** Niveau du salon : dès la Diffusion restreinte, l'application bloque captures, transfert et copie. */
+  classification: Habilitation;
 }
 
 export interface Fonction {

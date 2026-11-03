@@ -195,6 +195,27 @@ services:
       - bot_donnees:/donnees
     # Aucun port publié : seule l'API lui donne des ordres
 
+  # Tests automatisés des fonctions de sécurité (serveur aveugle, intrus, révocation), à lancer à la demande :
+  #   docker compose --profile tests run --rm tests
+  tests:
+    image: messaf-api:jalon1
+    pull_policy: never
+    profiles: ["tests"]
+    command: ["python", "-m", "unittest", "discover", "-s", "/tests", "-v"]
+    environment:
+      PGHOST: postgres
+      PGUSER: messaf
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      KEYCLOAK_ISSUER: http://localhost:8180/realms/messaf
+      KEYCLOAK_INTERNE: http://keycloak:8080
+      MAS_TOKEN_URL: http://mas:8080/oauth2/token
+      MAS_ADMIN_URL: http://mas:8081/api/admin/v1
+      SYNAPSE_URL: http://synapse:8008
+    volumes:
+      - ./tests:/tests:ro
+      - secrets:/secrets:ro
+    restart: "no"
+
   # Notifications Android sans Google (UnifiedPush), branchées au jalon 4
   ntfy:
     image: binwiederhier/ntfy:v2.36.0

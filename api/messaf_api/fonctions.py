@@ -133,17 +133,37 @@ def etat_salon(salon: dict, titulaires: dict[str, list[str]] | None = None,
         fonctions.append({
             "poste": code,
             "libelle": p["intitule"] if p else code,
-            "titulaires": [matrix_id(m) for m in tit],
-            "interimaires": [{"matrix_id": matrix_id(m), "jusqu_au": fin.isoformat()} for m, fin in inter],
+            "titulaires": [matrix_id(m) for m in sorted(tit)],
+            "interimaires": [{"matrix_id": matrix_id(m), "jusqu_au": fin.isoformat()} for m, fin in sorted(inter)],
         })
     return {"type": "fonction", "poste": salon["poste"], "interlocuteur": salon["interlocuteur"],
-            "archive": True, "fonctions": fonctions}
+            "classification": salon.get("classification") or "normal", "archive": True, "fonctions": fonctions}
 
 
-def creer_salon_fonction(poste_code: str, interlocuteur: str, auteur: str) -> dict:
+def niveau_maximal(p: dict, autre: dict) -> str:
+    """Le niveau le plus haut possible pour le salon de deux fonctions : chaque titulaire doit y être habilité."""
+    return min(p["habilitation_requise"], autre["habilitation_requise"], key=RANG.__getitem__)
+
+
+def habilite_pour(matricule: str, classification: str, annuaire: "Annuaire") -> bool:
+    """Vrai si l'agent peut entrer dans un salon de ce niveau (habilitation au moins égale)."""
+    fiche = annuaire.fiche(matricule)
+    return bool(fiche) and RANG.get(valeur(fiche, "habilitation") or "normal", 0) >= RANG[classification]
+
+
+def memoriser_etats(salons: list[dict]) -> None:
+    """Retient l'état écrit par le bot dans chaque salon, pour ne le réécrire que s'il change."""
+    with base.connexion() as cnx:
+        for s in salons:
+            cnx.execute("UPDATE salons_fonction SET etat_ecrit = %s WHERE room_id = %s", (base.Json(s["etat"]), s["room_id"]))
+
+
+def creer_salon_fonction(poste_code: str, interlocuteur: str, auteur: str, classification: str = "normal") -> dict:
     p, autre = poste_ou_404(poste_code), poste_ou_404(interlocuteur)
     if poste_code == interlocuteur:
         raise invalide({"interlocuteur": "Choisissez une autre fonction."})
+    if RANG[classification] > RANG[niveau_maximal(p, autre)]:
+        raise invalide({"classification": "Niveau trop élevé : les titulaires de ces fonctions n'y sont pas tous habilités."})
     with base.connexion() as cnx:
         existant = cnx.execute(
             "SELECT * FROM salons_fonction WHERE (poste = %s AND interlocuteur = %s) OR (poste = %s AND interlocuteur = %s)",
@@ -151,26 +171,31 @@ def creer_salon_fonction(poste_code: str, interlocuteur: str, auteur: str) -> di
         ).fetchone()
     if existant:
         raise conflit("salon_existant", "Ces deux fonctions ont déjà leur salon.")
-    salon = {"poste": poste_code, "interlocuteur": interlocuteur}
-    membres = []
+    salon = {"poste": poste_code, "interlocuteur": interlocuteur, "classification": classification}
+    annuaire = Annuaire()
+    agents = []
     for code in (poste_code, interlocuteur):
-        membres += [matrix_id(m) for m in base.titulaires(code)]
-        membres += [matrix_id(l["interimaire"]) for l in interimaires_en_cours(code)]
+        agents += base.titulaires(code)
+        agents += [l["interimaire"] for l in interimaires_en_cours(code)]
+    # Un agent dont l'habilitation ne suffit pas n'est pas invité (salon classé)
+    membres = sorted({matrix_id(m) for m in agents if habilite_pour(m, classification, annuaire)})
     nom = f"FCT-{poste_code} · {interlocuteur}"
-    room_id = bot.creer_salon(nom, f"{p['intitule']} ↔ {autre['intitule']}", etat_salon(salon), sorted(set(membres)))
+    etat = etat_salon(salon)
+    room_id = bot.creer_salon(nom, f"{p['intitule']} ↔ {autre['intitule']}", etat, membres)
     with base.connexion() as cnx:
         ligne = cnx.execute(
-            "INSERT INTO salons_fonction (room_id, poste, interlocuteur, nom, cree_par) VALUES (%s, %s, %s, %s, %s) RETURNING *",
-            (room_id, poste_code, interlocuteur, nom, auteur),
+            "INSERT INTO salons_fonction (room_id, poste, interlocuteur, nom, cree_par, classification, etat_ecrit) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING *",
+            (room_id, poste_code, interlocuteur, nom, auteur, classification, base.Json(etat)),
         ).fetchone()
     base.journaliser(auteur, "salon_fonction", "succes", poste_code, ministere_du_poste(p),
-                     {"interlocuteur": interlocuteur, "room_id": room_id})
+                     {"interlocuteur": interlocuteur, "room_id": room_id, "classification": classification})
     return ligne
 
 
 def vue_salon(s: dict) -> dict:
     return {"room_id": s["room_id"], "nom": s["nom"], "poste": s["poste"], "interlocuteur": s["interlocuteur"],
-            "cree_le": s["cree_le"].isoformat()}
+            "classification": s["classification"], "cree_le": s["cree_le"].isoformat()}
 
 
 def vue_fonction(p: dict, annuaire: Annuaire) -> dict:
@@ -214,6 +239,8 @@ def obtenir_fonction(poste: str, utilisateur: Utilisateur = Depends(utilisateur_
 
 class NouveauSalon(Strict):
     interlocuteur: str = Field(min_length=1, max_length=64, description="Code de l'autre fonction, ex. DH-SANTE")
+    classification: Literal["normal", "diffusion_restreinte", "confidentiel"] = Field(
+        default="normal", description="Au plus l'habilitation requise par chacune des deux fonctions")
 
 
 @routeur.post("/fonctions/{poste}/salons", status_code=201, tags=["Fonctions"],
@@ -222,7 +249,7 @@ class NouveauSalon(Strict):
 def ouvrir_salon(poste: str, corps: NouveauSalon, utilisateur: Utilisateur = Depends(utilisateur_courant)):
     p = poste_ou_404(poste)
     controler(utilisateur, "salon_fonction", ADMINISTRATEURS, ministere_du_poste(p), poste)
-    return vue_salon(creer_salon_fonction(poste, corps.interlocuteur, utilisateur.identifiant))
+    return vue_salon(creer_salon_fonction(poste, corps.interlocuteur, utilisateur.identifiant, corps.classification))
 
 
 # ----- Passations -----
@@ -316,6 +343,8 @@ def executer_passation(id_: int, auteur: str) -> dict:
         except ErreurApi as erreur:
             compte = {"erreur": erreur.message, "erreurs": 1, "salons": []}
         reussie = compte.get("erreurs", 1) == 0
+        if reussie:
+            memoriser_etats(ordre["salons"] + ordre["anciens_salons"])
         with base.connexion() as cnx:
             if reussie:
                 if l["sortant"]:
@@ -527,14 +556,17 @@ def demarrer_interim(id_: int, auteur: str) -> None:
                            f"{date_longue(a['date_fin'])}, en l'absence de {annuaire.nom(a['matricule'])}.",
                 "interimaire": matrix_id(interimaire),
                 "titulaires": [matrix_id(m) for m in base.titulaires(a["poste"])],
+                # Un salon classé au-dessus de l'habilitation de l'intérimaire lui reste fermé
                 "salons": [{"room_id": s["room_id"],
                             "etat": etat_salon(s, interims={a["poste"]: existants + [(interimaire, a["date_fin"])]})}
-                           for s in salons_de(a["poste"])],
+                           for s in salons_de(a["poste"]) if habilite_pour(interimaire, s["classification"], annuaire)],
             }
             try:
                 compte = bot.interim(ordre)
             except ErreurApi as erreur:
                 compte = {"erreur": erreur.message, "erreurs": 1}
+            if compte.get("erreurs", 1) == 0:
+                memoriser_etats(ordre["salons"])
         reussi = compte is None or compte.get("erreurs", 1) == 0
         with base.connexion() as cnx:
             cnx.execute(
@@ -576,6 +608,8 @@ def terminer_interim(id_: int, auteur: str, anticipee: bool) -> None:
                 compte = bot.fin_interim(ordre)
             except ErreurApi as erreur:
                 compte = {"erreur": erreur.message, "erreurs": 1}
+            if compte.get("erreurs", 1) == 0:
+                memoriser_etats(ordre["salons"])
         reussi = compte is None or compte.get("erreurs", 1) == 0
         with base.connexion() as cnx:
             cnx.execute(
@@ -725,7 +759,26 @@ def statut_agent(matricule: str, utilisateur: Utilisateur = Depends(utilisateur_
 
 # ----- Exécution aux dates prévues -----
 
-SALONS_DEMO = [("DRH-SANTE", "DH-SANTE"), ("DRH-SANTE", "SG-SANTE")]
+# Salons de démonstration et leur niveau : DRH ↔ hôpitaux en Diffusion restreinte, DRH ↔ secrétariat général
+# en Confidentiel (les titulaires des deux fonctions y sont habilités).
+SALONS_DEMO = [("DRH-SANTE", "DH-SANTE", "diffusion_restreinte"), ("DRH-SANTE", "SG-SANTE", "confidentiel")]
+
+
+def synchroniser_etats() -> None:
+    """Réécrit l'état bf.messaf.salon des salons dont la base a changé (niveau, titulaires, intérims)."""
+    with base.connexion() as cnx:
+        salons = cnx.execute("SELECT * FROM salons_fonction ORDER BY cree_le").fetchall()
+    a_ecrire = []
+    for s in salons:
+        etat = etat_salon(s)
+        if etat != s["etat_ecrit"]:
+            a_ecrire.append({"room_id": s["room_id"], "etat": etat})
+    if not a_ecrire:
+        return
+    compte = bot.ecrire_etats(a_ecrire)
+    echecs = {r["room_id"] for r in compte.get("salons", []) if r.get("erreur")}
+    memoriser_etats([e for e in a_ecrire if e["room_id"] not in echecs])
+    journal.info("état de %d salon(s) de fonction réécrit", len(a_ecrire) - len(echecs))
 
 
 def tour() -> None:
@@ -742,13 +795,18 @@ def tour() -> None:
     for l in a_clore:
         terminer_interim(l["id"], "planificateur", anticipee=False)
     if reglages.demo:
-        for poste_code, interlocuteur in SALONS_DEMO:
+        for poste_code, interlocuteur, classification in SALONS_DEMO:
             with base.connexion() as cnx:
-                existe = cnx.execute("SELECT 1 FROM salons_fonction WHERE poste = %s AND interlocuteur = %s",
+                existe = cnx.execute("SELECT classification FROM salons_fonction WHERE poste = %s AND interlocuteur = %s",
                                      (poste_code, interlocuteur)).fetchone()
+                if existe and existe["classification"] != classification:
+                    # Installation antérieure à la classification : le niveau est posé, l'état suivra
+                    cnx.execute("UPDATE salons_fonction SET classification = %s WHERE poste = %s AND interlocuteur = %s",
+                                (classification, poste_code, interlocuteur))
             if not existe and base.poste(poste_code) and base.poste(interlocuteur):
-                creer_salon_fonction(poste_code, interlocuteur, "demo")
-                journal.info("salon de démonstration créé : %s ↔ %s", poste_code, interlocuteur)
+                creer_salon_fonction(poste_code, interlocuteur, "demo", classification)
+                journal.info("salon de démonstration créé : %s ↔ %s (%s)", poste_code, interlocuteur, classification)
+    synchroniser_etats()
 
 
 class Planificateur(threading.Thread):

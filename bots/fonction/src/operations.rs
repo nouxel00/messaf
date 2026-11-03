@@ -39,6 +39,44 @@ pub async fn creer_salon(bot: &Bot, d: DemandeSalon) -> Result<SalonCree> {
     Ok(SalonCree { room_id })
 }
 
+// ----- Réécriture de l'état de salons existants -----
+
+#[derive(Deserialize)]
+pub struct DemandeEtats {
+    pub salons: Vec<SalonVise>,
+}
+
+#[derive(Serialize)]
+pub struct EtatEcrit {
+    pub room_id: OwnedRoomId,
+    pub erreur: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct CompteEtats {
+    pub salons: Vec<EtatEcrit>,
+}
+
+/// Changement de classification ou resynchronisation : seul l'état `bf.messaf.salon` change, sans avis.
+pub async fn ecrire_etats(bot: &Bot, d: DemandeEtats) -> Result<CompteEtats> {
+    let mut salons = vec![];
+    for vise in d.salons {
+        let resultat: Result<()> = async {
+            let salon = bot.salon(&vise.room_id)?;
+            bot.ecrire_etat(&salon, &vise.etat).await
+        }
+        .await;
+        if let Err(e) = &resultat {
+            warn!(salon = %vise.room_id, "état : {e:#}");
+        }
+        salons.push(EtatEcrit {
+            room_id: vise.room_id,
+            erreur: resultat.err().map(|e| format!("{e:#}")),
+        });
+    }
+    Ok(CompteEtats { salons })
+}
+
 // ----- Passation de service -----
 
 #[derive(Deserialize)]

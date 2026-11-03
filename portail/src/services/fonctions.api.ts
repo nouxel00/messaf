@@ -9,6 +9,7 @@ import type {
   StatutAbsence,
   StatutPassation,
 } from '@/types/fonction';
+import type { Habilitation } from '@/types/messaf';
 import { api } from './api';
 import type { FonctionsService } from './fonctions.service';
 import { versPoste, type PosteApi } from './referentiel.api';
@@ -24,7 +25,7 @@ interface FonctionApi {
   titulaires: PersonneApi[];
   interimaires: (PersonneApi & { jusqu_au: string })[];
   vacante: boolean;
-  salons: { room_id: string; nom: string; poste: string; interlocuteur: string }[];
+  salons: { room_id: string; nom: string; poste: string; interlocuteur: string; classification?: Habilitation }[];
 }
 interface PassationApi {
   id: number;
@@ -164,7 +165,13 @@ export const fonctionsApi: FonctionsService = {
       titulaires: f.titulaires.map(personne),
       interimaires: f.interimaires.map((i) => ({ ...personne(i), jusquAu: i.jusqu_au })),
       vacante: f.vacante,
-      salons: f.salons.map((s) => ({ roomId: s.room_id, nom: s.nom, poste: s.poste, interlocuteur: s.interlocuteur })),
+      salons: f.salons.map((s) => ({
+        roomId: s.room_id,
+        nom: s.nom,
+        poste: s.poste,
+        interlocuteur: s.interlocuteur,
+        classification: s.classification ?? 'normal',
+      })),
     }));
   },
 

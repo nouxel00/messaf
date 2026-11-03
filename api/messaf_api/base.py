@@ -58,6 +58,10 @@ CREATE TABLE IF NOT EXISTS salons_fonction (
     UNIQUE (poste, interlocuteur),
     CHECK (poste <> interlocuteur)
 );
+-- Niveau de classification du salon, et dernier état bf.messaf.salon écrit par le bot (resynchronisation)
+ALTER TABLE salons_fonction ADD COLUMN IF NOT EXISTS classification text NOT NULL DEFAULT 'normal'
+    CHECK (classification IN ('normal', 'diffusion_restreinte', 'confidentiel'));
+ALTER TABLE salons_fonction ADD COLUMN IF NOT EXISTS etat_ecrit jsonb;
 
 -- Passations de service : une affectation se clôt, une autre s'ouvre sur le même poste.
 CREATE TABLE IF NOT EXISTS passations (

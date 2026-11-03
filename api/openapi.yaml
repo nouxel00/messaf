@@ -1260,6 +1260,15 @@ components:
           minLength: 1
           title: Interlocuteur
           description: Code de l'autre fonction, ex. DH-SANTE
+        classification:
+          type: string
+          enum:
+          - normal
+          - diffusion_restreinte
+          - confidentiel
+          title: Classification
+          description: Au plus l'habilitation requise par chacune des deux fonctions
+          default: normal
       additionalProperties: false
       type: object
       required:
