@@ -1,11 +1,12 @@
 openapi: 3.1.0
 info:
   title: API d'administration MESSAF
-  description: 'Enrôlement, révocation et audit des agents. Chaque appel exige un
-    jeton Keycloak du domaine messaf : dans cette page, bouton « Authorize », puis
-    connexion avec un compte du domaine (mot de passe et code TOTP). Fichier généré
-    depuis le code de l''API (FastAPI) : ne pas le modifier à la main.'
-  version: 1.0.0
+  description: 'Enrôlement, révocation et audit des agents ; fonctions, passations
+    de service et intérims. Chaque appel exige un jeton Keycloak du domaine messaf
+    : dans cette page, bouton « Authorize », puis connexion avec un compte du domaine
+    (mot de passe et code TOTP). Fichier généré depuis le code de l''API (FastAPI)
+    : ne pas le modifier à la main.'
+  version: 2.0.0
 paths:
   /sante:
     get:
@@ -502,6 +503,609 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Erreur'
+  /fonctions:
+    get:
+      tags:
+      - Fonctions
+      summary: 'Les fonctions du ministère : titulaires, intérimaires, salons'
+      operationId: lister_fonctions_fonctions_get
+      security:
+      - OAuth2AuthorizationCodeBearer: []
+      parameters:
+      - name: ministere
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ministere
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Forbidden
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Unprocessable Content
+  /fonctions/{poste}:
+    get:
+      tags:
+      - Fonctions
+      summary: Une fonction et l'historique de ses titulaires
+      operationId: obtenir_fonction_fonctions__poste__get
+      security:
+      - OAuth2AuthorizationCodeBearer: []
+      parameters:
+      - name: poste
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Poste
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /fonctions/{poste}/salons:
+    post:
+      tags:
+      - Fonctions
+      summary: Ouvrir le salon entre deux fonctions (le bot le crée et y invite les
+        titulaires)
+      operationId: ouvrir_salon_fonctions__poste__salons_post
+      security:
+      - OAuth2AuthorizationCodeBearer: []
+      parameters:
+      - name: poste
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Poste
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NouveauSalon'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Unprocessable Content
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Service Unavailable
+  /passations:
+    post:
+      tags:
+      - Passations
+      summary: Planifier une passation de service (exécutée tout de suite si la date
+        d'effet est atteinte)
+      operationId: planifier_passation_passations_post
+      security:
+      - OAuth2AuthorizationCodeBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NouvellePassation'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Unprocessable Content
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Service Unavailable
+    get:
+      tags:
+      - Passations
+      summary: Les passations du ministère, de la plus récente à la plus ancienne
+      operationId: lister_passations_passations_get
+      security:
+      - OAuth2AuthorizationCodeBearer: []
+      parameters:
+      - name: ministere
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ministere
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Forbidden
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Unprocessable Content
+  /passations/{id_}/execution:
+    post:
+      tags:
+      - Passations
+      summary: Relancer une passation en échec, ou exécuter une passation dont la
+        date est atteinte
+      operationId: relancer_passation_passations__id___execution_post
+      security:
+      - OAuth2AuthorizationCodeBearer: []
+      parameters:
+      - name: id_
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: 'Id '
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Conflict
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Service Unavailable
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /passations/{id_}/annulation:
+    post:
+      tags:
+      - Passations
+      summary: Annuler une passation planifiée
+      operationId: annuler_passation_passations__id___annulation_post
+      security:
+      - OAuth2AuthorizationCodeBearer: []
+      parameters:
+      - name: id_
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: 'Id '
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Conflict
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /absences:
+    post:
+      tags:
+      - Absences et intérims
+      summary: Déclarer une absence et proposer un intérimaire (validation par le
+        supérieur)
+      operationId: declarer_absence_absences_post
+      security:
+      - OAuth2AuthorizationCodeBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NouvelleAbsence'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Unprocessable Content
+    get:
+      tags:
+      - Absences et intérims
+      summary: Les absences du ministère (à valider, en cours, passées)
+      operationId: lister_absences_absences_get
+      security:
+      - OAuth2AuthorizationCodeBearer: []
+      parameters:
+      - name: ministere
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ministere
+      - name: etat
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Etat
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Forbidden
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Unprocessable Content
+  /absences/{id_}/validation:
+    post:
+      tags:
+      - Absences et intérims
+      summary: Valider ou refuser l'intérim (titulaire du poste supérieur)
+      operationId: valider_absence_absences__id___validation_post
+      security:
+      - OAuth2AuthorizationCodeBearer: []
+      parameters:
+      - name: id_
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: 'Id '
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Decision'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Unprocessable Content
+  /absences/{id_}/fin:
+    post:
+      tags:
+      - Absences et intérims
+      summary: 'Retour anticipé : fin de l''intérim (ou annulation d''une absence
+        pas encore commencée)'
+      operationId: finir_absence_absences__id___fin_post
+      security:
+      - OAuth2AuthorizationCodeBearer: []
+      parameters:
+      - name: id_
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: 'Id '
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Conflict
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /agents/{matricule}/statut:
+    get:
+      tags:
+      - Absences et intérims
+      summary: Statut d'un agent et son intérimaire, pour le bandeau de l'application
+      operationId: statut_agent_agents__matricule__statut_get
+      security:
+      - OAuth2AuthorizationCodeBearer: []
+      parameters:
+      - name: matricule
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Matricule
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Unauthorized
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     AffectationEntree:
@@ -540,6 +1144,32 @@ components:
       additionalProperties: false
       type: object
       title: AnnuaireEntree
+    Decision:
+      properties:
+        decision:
+          type: string
+          enum:
+          - validee
+          - refusee
+          title: Decision
+        interimaire:
+          anyOf:
+          - type: string
+            pattern: ^[0-9]{6}$
+          - type: 'null'
+          title: Interimaire
+          description: Le supérieur peut désigner un autre intérimaire
+        motif:
+          anyOf:
+          - type: string
+            maxLength: 500
+          - type: 'null'
+          title: Motif
+      additionalProperties: false
+      type: object
+      required:
+      - decision
+      title: Decision
     Erreur:
       properties:
         message:
@@ -564,6 +1194,15 @@ components:
       - code
       title: Erreur
       description: Format commun de toutes les erreurs de l'API.
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
     IdentiteEntree:
       properties:
         matricule:
@@ -613,6 +1252,19 @@ components:
       additionalProperties: false
       type: object
       title: Motif
+    NouveauSalon:
+      properties:
+        interlocuteur:
+          type: string
+          maxLength: 64
+          minLength: 1
+          title: Interlocuteur
+          description: Code de l'autre fonction, ex. DH-SANTE
+      additionalProperties: false
+      type: object
+      required:
+      - interlocuteur
+      title: NouveauSalon
     NouvelAgent:
       properties:
         identite:
@@ -636,6 +1288,85 @@ components:
       - habilitation
       - affectation
       title: NouvelAgent
+    NouvelleAbsence:
+      properties:
+        matricule:
+          anyOf:
+          - type: string
+            pattern: ^[0-9]{6}$
+          - type: 'null'
+          title: Matricule
+          description: 'Absent : vous-même par défaut'
+        statut:
+          type: string
+          enum:
+          - en_mission
+          - en_conge
+          - absent
+          title: Statut
+        precision:
+          anyOf:
+          - type: string
+            maxLength: 200
+          - type: 'null'
+          title: Precision
+          description: Ex. joignable, injoignable, maladie, formation
+        date_debut:
+          type: string
+          format: date
+          title: Date Debut
+        date_fin:
+          type: string
+          format: date
+          title: Date Fin
+        interimaire:
+          anyOf:
+          - type: string
+            pattern: ^[0-9]{6}$
+          - type: 'null'
+          title: Interimaire
+      additionalProperties: false
+      type: object
+      required:
+      - statut
+      - date_debut
+      - date_fin
+      title: NouvelleAbsence
+    NouvellePassation:
+      properties:
+        poste:
+          type: string
+          maxLength: 64
+          minLength: 1
+          title: Poste
+        entrant:
+          type: string
+          pattern: ^[0-9]{6}$
+          title: Entrant
+        sortant:
+          anyOf:
+          - type: string
+            pattern: ^[0-9]{6}$
+          - type: 'null'
+          title: Sortant
+          description: Obligatoire si le poste a plusieurs titulaires (secrétariat)
+        date_effet:
+          type: string
+          format: date
+          title: Date Effet
+        motif:
+          anyOf:
+          - type: string
+            maxLength: 500
+          - type: 'null'
+          title: Motif
+      additionalProperties: false
+      type: object
+      required:
+      - poste
+      - entrant
+      - date_effet
+      title: NouvellePassation
     ProfilEntree:
       properties:
         ministere:
@@ -665,6 +1396,32 @@ components:
       - direction
       - service
       title: ProfilEntree
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
   securitySchemes:
     OAuth2AuthorizationCodeBearer:
       type: oauth2

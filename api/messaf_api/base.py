@@ -7,6 +7,7 @@ from contextlib import contextmanager
 
 import psycopg
 from psycopg.rows import dict_row
+from psycopg.types.json import Jsonb as Json  # noqa: F401  (comptes rendus en jsonb)
 from psycopg_pool import ConnectionPool
 
 from .config import reglages
@@ -44,6 +45,59 @@ CREATE TABLE IF NOT EXISTS affectations (
     CHECK (date_fin IS NULL OR date_fin >= date_debut)
 );
 CREATE INDEX IF NOT EXISTS affectations_matricule ON affectations (matricule);
+
+-- Salons de fonction (créés par le bot) : un salon relie deux fonctions, par exemple DRH-SANTE et
+-- DH-SANTE. Il appartient aux deux : une passation sur l'un ou l'autre poste le touche.
+CREATE TABLE IF NOT EXISTS salons_fonction (
+    room_id       text PRIMARY KEY,
+    poste         text NOT NULL REFERENCES postes (code),
+    interlocuteur text NOT NULL REFERENCES postes (code),
+    nom           text NOT NULL,
+    cree_par      text NOT NULL,
+    cree_le       timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (poste, interlocuteur),
+    CHECK (poste <> interlocuteur)
+);
+
+-- Passations de service : une affectation se clôt, une autre s'ouvre sur le même poste.
+CREATE TABLE IF NOT EXISTS passations (
+    id           bigserial PRIMARY KEY,
+    poste        text NOT NULL REFERENCES postes (code),
+    sortant      text,
+    entrant      text NOT NULL,
+    date_effet   date NOT NULL,
+    motif        text,
+    statut       text NOT NULL DEFAULT 'planifiee' CHECK (statut IN ('planifiee', 'executee', 'echec', 'annulee')),
+    demandee_par text NOT NULL,
+    demandee_le  timestamptz NOT NULL DEFAULT now(),
+    executee_le  timestamptz,
+    compte_rendu jsonb
+);
+
+-- Absences et intérims : déclarés par l'agent (ou les RH), validés par le supérieur hiérarchique.
+CREATE TABLE IF NOT EXISTS absences (
+    id             bigserial PRIMARY KEY,
+    matricule      text NOT NULL,
+    poste          text NOT NULL REFERENCES postes (code),
+    statut         text NOT NULL CHECK (statut IN ('en_mission', 'en_conge', 'absent')),
+    precision      text,
+    date_debut     date NOT NULL,
+    date_fin       date NOT NULL,
+    interimaire    text,
+    etat           text NOT NULL DEFAULT 'en_attente'
+                   CHECK (etat IN ('en_attente', 'validee', 'refusee', 'en_cours', 'terminee', 'annulee')),
+    declaree_par   text NOT NULL,
+    declaree_le    timestamptz NOT NULL DEFAULT now(),
+    validee_par    text,
+    validee_le     timestamptz,
+    motif_refus    text,
+    debut_effectif timestamptz,
+    fin_effective  timestamptz,
+    compte_rendu   jsonb,
+    CHECK (date_fin >= date_debut),
+    CHECK (interimaire IS NULL OR interimaire <> matricule)
+);
+CREATE INDEX IF NOT EXISTS absences_matricule ON absences (matricule);
 
 CREATE TABLE IF NOT EXISTS audit (
     id         bigserial PRIMARY KEY,
@@ -155,10 +209,55 @@ def affectation_en_cours(matricule: str) -> dict | None:
     with connexion() as cnx:
         return cnx.execute(
             "SELECT matricule, poste, date_debut, date_fin FROM affectations "
-            "WHERE matricule = %s AND (date_fin IS NULL OR date_fin >= current_date) "
+            "WHERE matricule = %s AND date_debut <= current_date AND (date_fin IS NULL OR date_fin >= current_date) "
             "ORDER BY date_debut DESC LIMIT 1",
             (matricule,),
         ).fetchone()
+
+
+def titulaires(poste_code: str) -> list[str]:
+    """Matricules des titulaires actuels d'un poste (plusieurs pour un secrétariat, aucun s'il est vacant)."""
+    with connexion() as cnx:
+        lignes = cnx.execute(
+            "SELECT DISTINCT matricule FROM affectations WHERE poste = %s AND date_debut <= current_date "
+            "AND (date_fin IS NULL OR date_fin >= current_date) ORDER BY matricule",
+            (poste_code,),
+        ).fetchall()
+    return [l["matricule"] for l in lignes]
+
+
+def postes_occupes(matricule: str) -> list[str]:
+    """Postes qu'un agent occupe aujourd'hui (en général un seul)."""
+    with connexion() as cnx:
+        lignes = cnx.execute(
+            "SELECT DISTINCT poste FROM affectations WHERE matricule = %s AND date_debut <= current_date "
+            "AND (date_fin IS NULL OR date_fin >= current_date) ORDER BY poste",
+            (matricule,),
+        ).fetchall()
+    return [l["poste"] for l in lignes]
+
+
+def cloturer_affectations(cnx, matricule: str, postes: list[str], date_effet) -> None:
+    """Fin d'affectation la veille de la date d'effet.
+
+    Les dates sont comptées en jours : une affectation qui commençait le jour même (deux passations
+    le même jour) est supprimée. Le registre des passations et le journal d'audit en gardent la trace.
+    """
+    cnx.execute("DELETE FROM affectations WHERE matricule = %s AND poste = ANY(%s) AND date_debut >= %s",
+                (matricule, postes, date_effet))
+    cnx.execute(
+        "UPDATE affectations SET date_fin = %s::date - 1 "
+        "WHERE matricule = %s AND poste = ANY(%s) AND (date_fin IS NULL OR date_fin >= %s)",
+        (date_effet, matricule, postes, date_effet),
+    )
+
+
+def historique_titulaires(poste_code: str) -> list[dict]:
+    with connexion() as cnx:
+        return cnx.execute(
+            "SELECT matricule, date_debut, date_fin FROM affectations WHERE poste = %s ORDER BY date_debut DESC",
+            (poste_code,),
+        ).fetchall()
 
 
 def enregistrer_agent(matricule: str, telephone: str | None, annuaire_email: bool, annuaire_telephone: bool,

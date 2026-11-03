@@ -1,6 +1,6 @@
 # api
 
-API d'administration de MESSAF, en Python (FastAPI). Elle crée et enrôle les agents dans Keycloak, émet leur fiche d'enrôlement, les révoque (Keycloak et MAS) et tient le journal d'audit. Le portail de Lionnel est son seul client. Responsable : Axel.
+API d'administration de MESSAF, en Python (FastAPI). Elle crée et enrôle les agents dans Keycloak, émet leur fiche d'enrôlement, les révoque (Keycloak et MAS) et tient le journal d'audit. Depuis le jalon 2, elle tient aussi le registre des fonctions, des passations de service et des intérims, que le [bot de fonction](../bots/fonction/README.md) exécute dans Matrix. Le portail de Lionnel est son seul client. Responsable : Axel.
 
 - Contrat : `openapi.yaml`, généré depuis le code. Documentation interactive : http://localhost:8000/docs
 - Démarrage : avec le reste de la pile, `docker compose up -d --build` à la racine du dépôt.
@@ -29,6 +29,17 @@ Elle lit dans le jeton :
 | `POST /agents/{matricule}/revocation` | Révoquer : Keycloak bloqué, sessions MAS fermées | `admin_ministere` |
 | `POST /agents/{matricule}/reactivation` | Rendre l'accès | `admin_ministere` |
 | `GET /audit?limite=100` | Journal d'audit | `auditeur` |
+| `GET /fonctions?ministere=sante` | Fonctions : titulaires, intérimaires, salons | `gestionnaire_rh`, `admin_ministere`, `superieur`, `auditeur` |
+| `GET /fonctions/{poste}` | Une fonction et l'historique de ses titulaires | idem |
+| `POST /fonctions/{poste}/salons` | Créer un salon de fonction avec une autre fonction (`{"interlocuteur": "DH-SANTE"}`) | `admin_ministere` |
+| `POST /passations` | Passation de service : exécutée tout de suite si la date d'effet est atteinte, sinon planifiée | `admin_ministere` |
+| `GET /passations?ministere=sante` | Registre des passations | `admin_ministere`, `auditeur` |
+| `POST /passations/{id}/execution`, `POST /passations/{id}/annulation` | Relancer une passation en échec, annuler une passation planifiée | `admin_ministere` |
+| `POST /absences` | Déclarer une absence et proposer un intérimaire | l'agent lui-même, ou `gestionnaire_rh` |
+| `GET /absences?ministere=sante` | Absences à valider, en cours et passées | `gestionnaire_rh`, `admin_ministere`, `superieur`, `auditeur` |
+| `POST /absences/{id}/validation` | Valider ou refuser l'intérim, éventuellement désigner un autre intérimaire | titulaire du poste supérieur |
+| `POST /absences/{id}/fin` | Retour anticipé, ou annulation d'une absence pas encore commencée | l'agent, son supérieur, `gestionnaire_rh` |
+| `GET /agents/{matricule}/statut` | Statut (`disponible`, `en_mission`, `en_conge`, `absent`) et intérimaire, pour l'application | tout utilisateur connecté |
 
 `super_admin` a tous les droits, sur tous les ministères. Le paramètre `ministere` vaut par défaut celui de l'utilisateur ; un autre ministère est refusé (403), sauf pour `super_admin`.
 
@@ -55,6 +66,7 @@ Réponse 201 : `{"matricule", "matrix_id", "etat", "enrolement", "cree_le"}`. L'
 - `non_authentifie` (401) et `interdit` (403) ;
 - `introuvable` (404) et `donnees_invalides` (422) ;
 - `matricule_existant`, `deja_active`, `compte_revoque` et `auto_revocation` (409) ;
+- jalon 2 : `salon_existant`, `deja_titulaire`, `passation_en_attente`, `passation_terminee`, `passation_future`, `absence_existante`, `absence_traitee` et `absence_terminee` (409) ;
 - `service_indisponible` et `revocation_partielle` (503).
 
 ## Enrôlement
@@ -75,9 +87,24 @@ Réponse : `{"matricule", "etat": "revoque", "sessions_fermees"}`, le nombre de 
 
 Si MAS ne répond pas, l'API renvoie 503 `revocation_partielle` : le compte est déjà bloqué dans Keycloak, et la révocation peut être relancée sans risque.
 
+## Passations de service
+
+`POST /passations`, corps `{"poste": "DRH-SANTE", "entrant": "100006", "sortant": null, "date_effet": "2026-11-03", "motif": "..."}`. Le sortant est le titulaire actuel ; il n'est à préciser que si le poste en a plusieurs.
+
+L'API vérifie que l'entrant est un agent actif du ministère, habilité pour le poste (`habilitation` au moins égale à `habilitation_requise`), qu'il n'en est pas déjà titulaire et qu'aucune passation n'est déjà prévue. À la date d'effet (tout de suite, ou par le planificateur de l'API, qui passe chaque minute), le bot invite l'entrant dans les salons de la fonction avec leur historique, retire le sortant et remet le dossier de passation. **L'affectation ne change dans la base que si le bot a tout réussi** : sinon la passation est `echec`, et `POST /passations/{id}/execution` la relance sans risque.
+
+C'est une mutation : l'entrant quitte son poste actuel, et les salons de cette fonction. Les dates sont comptées en jours ; deux passations le même jour sur le même poste ne laissent que la dernière affectation, le registre et le journal gardent les deux.
+
+## Absences et intérims
+
+1. L'agent, ou un gestionnaire RH, déclare l'absence (`en_mission`, `en_conge` ou `absent`, dates, précision) et propose un intérimaire : un agent actif de la même direction, habilité pour le poste, et pas lui-même absent sur la période.
+2. Le titulaire du poste supérieur valide ou refuse. En validant, il peut désigner un autre intérimaire, même hors de la direction.
+3. À la date de début, le bot invite l'intérimaire **sans l'historique** et lui remet les affaires en cours. Si l'intérimaire est lui-même absent, la fonction remonte au titulaire du poste supérieur (trois niveaux au plus).
+4. À la date de fin, ou au retour anticipé, le bot retire l'intérimaire et remet un compte rendu au titulaire.
+
 ## Journal d'audit
 
-Chaque création, émission de fiche, révocation et réactivation est inscrite, ainsi que chaque refus d'accès à ces actions. Une ligne indique l'auteur, l'action, la cible, le ministère, le résultat et le détail. La table est en ajout seul : des déclencheurs PostgreSQL refusent toute modification et toute suppression, y compris le vidage d'un coup (`TRUNCATE`). Limite : un administrateur de la base peut retirer ces déclencheurs ; en production, l'API se connecterait avec un rôle qui n'a que les droits d'ajout et de lecture sur cette table.
+Chaque création, émission de fiche, révocation et réactivation est inscrite, ainsi que chaque refus d'accès à ces actions. Depuis le jalon 2, aussi : création de salon de fonction, passation (planifiée, exécutée, annulée), absence (déclarée, validée ou refusée, annulée), début et fin d'intérim. Une ligne indique l'auteur, l'action, la cible, le ministère, le résultat et le détail. La table est en ajout seul : des déclencheurs PostgreSQL refusent toute modification et toute suppression, y compris le vidage d'un coup (`TRUNCATE`). Limite : un administrateur de la base peut retirer ces déclencheurs ; en production, l'API se connecterait avec un rôle qui n'a que les droits d'ajout et de lecture sur cette table.
 
 ## Brancher le portail
 
@@ -94,14 +121,14 @@ Keycloak accepte le portail sur `http://localhost:5173` et `http://localhost:517
 
 ## Données de démonstration
 
-Avec `MESSAF_DEMO=1` (réglage de `docker-compose.yml`), l'API charge au démarrage l'organigramme et les postes fictifs du portail, ainsi que les affectations des 11 comptes de démonstration. Elle ne remplace rien de ce qui existe déjà.
+Avec `MESSAF_DEMO=1` (réglage de `docker-compose.yml`), l'API charge au démarrage l'organigramme et les postes fictifs du portail, ainsi que les affectations des 11 comptes de démonstration. Elle ne remplace rien de ce qui existe déjà. Dès que le bot répond, elle lui fait créer deux salons de fonction fictifs : DRH-SANTE avec DH-SANTE, et DRH-SANTE avec SG-SANTE.
 
 ## Dépendances
 
 | Paquet | Licence | Rôle |
 | --- | --- | --- |
 | FastAPI, Uvicorn, Pydantic | MIT, BSD | Serveur web et validation |
-| httpx | BSD | Appels à Keycloak et à MAS |
+| httpx | BSD | Appels à Keycloak, à MAS et au bot de fonction |
 | PyJWT, cryptography | MIT, Apache-2.0/BSD | Vérification des jetons |
 | psycopg, psycopg-pool | LGPL-3.0 | PostgreSQL |
 | fpdf2 | LGPL-3.0 | Fiche d'enrôlement PDF |

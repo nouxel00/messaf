@@ -17,9 +17,9 @@ from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import base, demo, fiche
+from . import base, demo, fiche, fonctions, outils
 from .config import reglages
-from .erreurs import ErreurApi, conflit, introuvable, invalide
+from .erreurs import ErreurApi, conflit, invalide
 from .keycloak import ACTIONS_PREMIERE_CONNEXION, keycloak
 from .mas import mas
 from .modeles import Erreur, Motif, NouvelAgent
@@ -48,8 +48,8 @@ LECTEURS = ("gestionnaire_rh", "admin_ministere")
 ENROLEURS = ("gestionnaire_rh",)
 REVOCATEURS = ("admin_ministere",)
 AUDITEURS = ("auditeur",)
-# L'organigramme et les postes ne sont pas des données personnelles : l'auditeur les lit aussi
-LECTEURS_REFERENTIEL = LECTEURS + AUDITEURS
+# L'organigramme et les postes ne sont pas des données personnelles : l'auditeur et le supérieur les lisent aussi
+LECTEURS_REFERENTIEL = LECTEURS + AUDITEURS + ("superieur",)
 
 # Erreurs décrites dans la documentation (/docs et openapi.yaml), toutes au format Erreur
 DESCRIPTIONS_ERREURS = {
@@ -71,14 +71,17 @@ async def cycle_de_vie(_app: FastAPI):
     base.ouvrir()
     if reglages.demo:
         demo.charger()
+    # Passations et intérims aux dates prévues ; salons de démonstration
+    planificateur = fonctions.demarrer_planificateur()
     yield
+    planificateur.arreter()
     base.fermer()
 
 
 app = FastAPI(
     title="API d'administration MESSAF",
-    version="1.0.0",
-    description="Enrôlement, révocation et audit des agents. Chaque appel exige un jeton Keycloak du domaine messaf : "
+    version="2.0.0",
+    description="Enrôlement, révocation et audit des agents ; fonctions, passations de service et intérims. Chaque appel exige un jeton Keycloak du domaine messaf : "
                 "dans cette page, bouton « Authorize », puis connexion avec un compte du domaine (mot de passe et code TOTP).",
     lifespan=cycle_de_vie,
     # La documentation est servie plus bas, avec des fichiers locaux
@@ -157,13 +160,11 @@ async def erreur_http(_request: Request, erreur: StarletteHTTPException):
 
 # --- Outils ---
 
-def _valeur(utilisateur: dict, attribut: str) -> str | None:
-    valeurs = utilisateur.get("attributes", {}).get(attribut) or [None]
-    return valeurs[0]
-
-
-def _matrix_id(matricule: str) -> str:
-    return f"@m{matricule}:{reglages.serveur_matrix}"
+_valeur = outils.valeur
+_matrix_id = outils.matrix_id
+_agent_keycloak = outils.agent_keycloak
+_controler = outils.controler
+_ministere_demande = outils.ministere_demande
 
 
 def _iso(horodatage_ms: int | None) -> str | None:
@@ -208,31 +209,6 @@ def _vue_agent(utilisateur: dict) -> dict:
         "poste": poste,
         "cree_le": _iso(utilisateur.get("createdTimestamp")),
     }
-
-
-def _agent_keycloak(matricule: str) -> dict:
-    utilisateur = keycloak.utilisateur(matricule)
-    if not utilisateur or not _valeur(utilisateur, "matricule"):
-        raise introuvable("Aucun agent ne porte ce matricule.")
-    return utilisateur
-
-
-def _controler(utilisateur: Utilisateur, action: str, roles: tuple, ministere: str | None, cible: str | None) -> None:
-    """Contrôle d'accès d'une action sensible ; tout refus est inscrit au journal d'audit."""
-    try:
-        exiger_role(utilisateur, *roles)
-        exiger_perimetre(utilisateur, ministere)
-    except ErreurApi as erreur:
-        base.journaliser(utilisateur.identifiant, action, "refus", cible, ministere, {"motif": erreur.message})
-        raise
-
-
-def _ministere_demande(utilisateur: Utilisateur, ministere: str | None) -> str:
-    ministere = ministere or utilisateur.ministere
-    if not ministere:
-        raise invalide({"ministere": "Précisez le ministère."})
-    exiger_perimetre(utilisateur, ministere)
-    return ministere
 
 
 # --- Routes ---
@@ -473,3 +449,7 @@ def audit(
     for ligne in lignes:
         ligne["horodatage"] = ligne["horodatage"].isoformat()
     return lignes
+
+
+# Jalon 2 : fonctions, passations de service, absences et intérims (fonctions.py)
+app.include_router(fonctions.routeur)

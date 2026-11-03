@@ -1,14 +1,16 @@
 # MESSAF-BF — Portail d'administration
 
-Front-End du portail d'administration de MESSAF-BF (Messagerie Sécurisée de l'Administration du Faso). Trois espaces, chacun réservé à son rôle et limité au ministère de l'utilisateur :
+Front-End du portail d'administration de MESSAF-BF (Messagerie Sécurisée de l'Administration du Faso). Cinq espaces, chacun réservé à son rôle et limité au ministère de l'utilisateur :
 
 | Espace | Rôle | Ce qu'il permet |
 |---|---|---|
 | Enrôlement | `gestionnaire_rh` | Créer le compte d'un agent et lui remettre sa fiche d'enrôlement |
 | Accès des agents | `admin_ministere` | Révoquer immédiatement l'accès d'un agent, ou le rétablir |
 | Contrôle | `auditeur` | Lire le journal d'audit du ministère |
+| Fonctions et passations | `admin_ministere` | Passation de service : le successeur reprend les salons de la fonction, leur historique et un dossier de passation |
+| Absences et intérims | `gestionnaire_rh`, `superieur` | Déclarer une absence (RH), valider l'intérim (supérieur hiérarchique), y mettre fin |
 
-`super_admin` voit les trois.
+`super_admin` voit tout.
 
 > **Deux modes.** Par défaut, le portail fonctionne en **démonstration** : connexion fictive, données fictives, créations simulées dans le navigateur, aucun compte créé. Branché sur **Keycloak et l'API d'administration** (voir « Raccordement à Keycloak et à l'API »), il crée de vrais comptes : identifiant Matrix réservé, fiche d'enrôlement avec un vrai code d'activation.
 
@@ -31,6 +33,7 @@ Ouvrir http://localhost:5173, puis se connecter avec un compte de démonstration
 | `100003` | Mariam Traoré, `gestionnaire_rh`, Santé | Enrôlement des agents de la Santé |
 | `100002` | Paul Zongo, `admin_ministere`, Santé | Révocation et réactivation des agents de la Santé |
 | `100009` | Salif Ouattara, `auditeur`, Santé | Journal d'audit de la Santé |
+| `100004` | Jean Compaoré, `superieur`, Santé (secrétaire général) | Validation des intérims de ses subordonnés directs |
 | `100011` | Boukary Nikéma, `admin_ministere`, Finances | Cloisonnement : aucun agent de la Santé visible |
 | `100008` | Fatimata Diallo, sans rôle | Accès refusé (messagerie uniquement) |
 
@@ -54,6 +57,10 @@ npm run preview     # sert le build
 Astuce de test : un matricule commençant par `999` simule une erreur du serveur.
 
 Révocation (moins d'une minute) : se connecter avec `100002` / `demo`, ouvrir **Fatimata DIALLO**, cliquer sur **Révoquer l'accès**, saisir un motif et confirmer. Puis se connecter avec `100009` / `demo` : la révocation apparaît en tête du **Journal d'audit**, avec son motif. Le tableau de bord de l'enrôlement permet d'effacer les essais.
+
+Passation (moins d'une minute) : se connecter avec `100002` / `demo`, ouvrir **Fonctions et passations**, cliquer sur **Passation** sur la ligne du DRH, choisir **Issa SAWADOGO** et exécuter. Le compte rendu indique, salon par salon, le successeur invité et la sortante retirée, puis le dossier de passation remis.
+
+Intérim : avec `100003`, **Absences et intérims**, **Déclarer une absence** pour Awa Ouédraogo, intérimaire Issa Sawadogo. Avec `100004`, **Valider** : l'intérim s'ouvre. **Retour anticipé** le clôt, avec le compte rendu du bot.
 
 ## Technologies
 
@@ -114,6 +121,8 @@ Règles suivies :
 | `/agents/nouveau` | Parcours en 5 étapes : identité, profil, poste et affectation, habilitation, récapitulatif |
 | `/agents/:matricule/creation-confirmee` | Confirmation : identifiant Matrix, informations clés, fiche PDF |
 | `/audit` | Journal d'audit : date, auteur, action, agent concerné, résultat (réussi, refusé, échec) et détail ; filtres par action et par résultat |
+| `/fonctions` | Fonctions du ministère (titulaire, intérim, salons, fonctions vacantes) ; passation avec choix du successeur parmi les agents habilités, date d'effet et motif ; registre des passations avec le compte rendu du bot, relance d'une passation en échec, annulation d'une passation planifiée |
+| `/absences` | Demandes à valider (le supérieur valide, refuse avec motif ou désigne un autre intérimaire) ; intérims en cours et à venir, retour anticipé ; historique avec le compte rendu de clôture ; déclaration d'une absence (RH) avec un intérimaire de la même direction |
 
 Toutes les routes, sauf `/connexion`, exigent une session et un rôle du portail ; chaque page vérifie ensuite le sien (`config/messaf.ts`, `components/navigation/ExigerRole.tsx`). Ce contrôle n'est qu'un confort d'affichage : **seule l'API protège réellement les données**, en vérifiant le rôle et le ministère.
 
@@ -135,6 +144,7 @@ Le bandeau jaune « MODE DÉMONSTRATION » s'affiche dès que l'une des deux pre
 - **Connexion** (`services/demo/auth.demo.ts`) : comptes fictifs de `mocks/comptes-demo.mock.ts`. Le mot de passe est comparé puis oublié. Seuls le nom, les rôles et le ministère sont gardés dans le `sessionStorage`, effacé à la fermeture de l'onglet.
 - **Agents** (`services/demo/agents.demo.ts`) : le jeu commun 100001 à 100011 est toujours présent. Les agents créés pendant les essais sont gardés dans le `localStorage` : données fictives uniquement, sans mot de passe ni code. Le tableau de bord permet de les effacer. La simulation imite le serveur : cloisonnement par ministère, refus des doublons (409), contrôle de cohérence avec l'organigramme (422) et délais de réponse.
 - **Révocation et journal** (`services/demo/agents.demo.ts`, `services/demo/journal.demo.ts`) : les états et le journal sont simulés dans le `localStorage`. Le journal part de quelques entrées fictives et reçoit ensuite chaque création, fiche, révocation et réactivation faite pendant les essais.
+- **Passations et intérims** (`services/demo/fonctions.demo.ts`) : simulés dans le `localStorage`, rien n'est envoyé au bot ni à Matrix. Deux salons fictifs (DRH-SANTE avec DH-SANTE et avec SG-SANTE) ; les comptes rendus imitent ceux du bot, et les mêmes contrôles que l'API s'appliquent (habilitation, même direction pour l'intérimaire, seul le supérieur valide).
 - **Fiche d'enrôlement** (`services/demo/fiche.demo.ts`) : PDF généré dans le navigateur. Il porte la mention « DOCUMENT DE DÉMONSTRATION — NON VALABLE POUR UN ENRÔLEMENT RÉEL » et **ne contient aucun code d'activation**.
 - Adresses fictives en `.messaf.example`, un domaine réservé qui n'est jamais attribué.
 
@@ -164,7 +174,7 @@ Le bandeau « MODE DÉMONSTRATION » disparaît. Le portail ne voit jamais le mo
 - Les jetons restent en mémoire, jamais dans le `localStorage`.
 - « Déconnexion » ferme aussi la session Keycloak.
 
-### Routes utilisées (`services/agents.api.ts`, `services/referentiel.api.ts`, `services/audit.api.ts`)
+### Routes utilisées (`services/agents.api.ts`, `services/referentiel.api.ts`, `services/audit.api.ts`, `services/fonctions.api.ts`)
 
 | Écran | Route |
 |---|---|
@@ -176,6 +186,9 @@ Le bandeau « MODE DÉMONSTRATION » disparaît. Le portail ne voit jamais le mo
 | Fiche d'enrôlement | `GET /agents/{matricule}/fiche-enrolement` |
 | Révocation, réactivation | `POST /agents/{matricule}/revocation`, `POST /agents/{matricule}/reactivation`, corps `{"motif": "…"}` |
 | Journal d'audit | `GET /audit?ministere=…&limite=200` |
+| Fonctions | `GET /fonctions?ministere=…` |
+| Passations | `GET /passations?ministere=…`, `POST /passations`, `POST /passations/{id}/execution`, `POST /passations/{id}/annulation` |
+| Absences et intérims | `GET /absences?ministere=…`, `POST /absences`, `POST /absences/{id}/validation`, `POST /absences/{id}/fin` |
 
 Contrat complet : `api/openapi.yaml`, ou http://localhost:8000/docs. Les erreurs arrivent au format `{message, code, champs}`, en français. Le récapitulatif affiche le détail de chaque champ refusé.
 
@@ -189,11 +202,11 @@ Chaque téléchargement de la fiche tire un **nouveau** code d'activation et ann
 | Erreurs | `{message, code, champs}` ; 409 `matricule_existant`, `deja_active`, `compte_revoque` ; 422 `donnees_invalides` | `services/api.ts` |
 | Format du matricule | 6 chiffres | `config/messaf.ts` |
 | Attributs `ministere`, `direction`, `service` | Codes de structure (`sante`, `sante-dh`…) | `types/profile.ts` |
-| Rôles par espace | Enrôlement : `gestionnaire_rh` ; consultation des agents : `gestionnaire_rh`, `admin_ministere` ; révocation : `admin_ministere` ; journal : `auditeur` ; `super_admin` partout | `config/messaf.ts` |
+| Rôles par espace | Enrôlement : `gestionnaire_rh` ; consultation des agents : `gestionnaire_rh`, `admin_ministere` ; révocation : `admin_ministere` ; journal : `auditeur` ; passations : `admin_ministere` ; absences : `gestionnaire_rh`, `superieur`, `admin_ministere` ; `super_admin` partout | `config/messaf.ts` |
 | Contenu du jeton | Rôles dans `realm_access.roles` ; `matricule`, `ministere`, `habilitation` ajoutés par le client `portail` | `auth.keycloak.ts` |
 | Client Keycloak | Domaine `messaf`, client public `portail` | `.env.example` |
 | État d'un compte créé | `actif`, enrôlement `en_attente` jusqu'à la première connexion | `agents.api.ts` |
 
 ## Hors périmètre de cette version
 
-Messagerie, gestion des rôles, espace super-administrateur dédié, gestion des structures et des postes, passation et intérim, suspension, convocations, suivi des actions, application Android, chiffrement, configuration de Keycloak, Synapse et PostgreSQL.
+Messagerie, gestion des rôles, espace super-administrateur dédié, gestion des structures et des postes, création de salons de fonction depuis le portail (API seulement), suspension, convocations, suivi des actions, application Android, chiffrement, configuration de Keycloak, Synapse et PostgreSQL.

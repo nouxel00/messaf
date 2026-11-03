@@ -4,7 +4,7 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import { useAuth, useSession } from '@/contexts/AuthContext';
 import { ReferentielProvider, useReferentielRH } from '@/contexts/ReferentielContext';
 import { LIBELLES_ROLE } from '@/types/messaf';
-import { peutAuditer, peutConsulterAgents } from '@/utils/permissions';
+import { peutAuditer, peutConsulterAgents, peutSuivreAbsences } from '@/utils/permissions';
 import { BarreLaterale } from '../navigation/BarreLaterale';
 import { BandeauDemo } from './BandeauDemo';
 
@@ -73,7 +73,7 @@ export function EspaceRH() {
   const session = useSession();
   const [menuOuvert, setMenuOuvert] = useState(false);
   // L'organigramme n'est lu que par les rôles qui y ont droit dans l'API
-  const lireReferentiel = peutConsulterAgents(session) || peutAuditer(session);
+  const lireReferentiel = peutConsulterAgents(session) || peutAuditer(session) || peutSuivreAbsences(session);
 
   return (
     <ReferentielProvider ministere={session.ministere} actif={lireReferentiel}>

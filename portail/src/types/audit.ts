@@ -22,6 +22,15 @@ export const LIBELLES_ACTION_AUDIT: Record<string, string> = {
   fiche_enrolement: "Émission de la fiche d'enrôlement",
   revocation: 'Révocation',
   reactivation: 'Réactivation',
+  salon_fonction: "Création d'un salon de fonction",
+  passation_planifiee: 'Passation planifiée',
+  passation: 'Passation de service',
+  passation_annulee: 'Passation annulée',
+  absence: "Déclaration d'absence",
+  absence_validation: "Décision sur un intérim",
+  absence_annulee: 'Absence annulée',
+  interim_debut: "Début d'intérim",
+  interim_fin: "Fin d'intérim",
 };
 
 export const LIBELLES_RESULTAT_AUDIT: Record<ResultatAudit, string> = {

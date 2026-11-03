@@ -6,8 +6,8 @@ Chaîne de connexion : **application → Synapse → MAS → Keycloak**. Synapse
 
 | Fichier | Rôle |
 | --- | --- |
-| `init/generer-secrets.py` | Génère au premier démarrage les secrets internes dans le volume `secrets` (jamais dans Git) |
-| `postgres/init.sql` | Crée les bases `synapse` (collation C), `keycloak` et `mas` au premier démarrage |
+| `init/generer-secrets.py` | Génère au premier démarrage les secrets internes dans le volume `secrets` (jamais dans Git), dont ceux du bot de fonction |
+| `postgres/init.sql` | Crée les bases `synapse` (collation C), `keycloak`, `mas` et `api` au premier démarrage |
 | `synapse/homeserver.yaml` | Configuration de Synapse, connexion déléguée à MAS |
 | `synapse/log.config` | Journaux de Synapse vers la console (`docker compose logs`) |
 | `mas/config.yaml` | Configuration de MAS : Keycloak comme seul fournisseur d'identité, API d'administration réservée à l'API MESSAF |
@@ -28,7 +28,9 @@ docker compose ps
 
 Dans `.env`, renseignez `POSTGRES_PASSWORD`, `KEYCLOAK_ADMIN_PASSWORD` et `MESSAF_DEMO_PASSWORD` (12 caractères minimum).
 
-Au premier démarrage, `secrets` et `keycloak-config` s'exécutent une fois puis s'arrêtent : c'est normal (état `Exited (0)`).
+Au premier démarrage, `secrets`, `keycloak-config` et `bot-init` s'exécutent une fois puis s'arrêtent : c'est normal (état `Exited (0)`). `bot-init` crée le compte Matrix du [bot de fonction](../bots/fonction/README.md) et son jeton.
+
+L'image du bot est téléchargée depuis `ghcr.io/nouxel00/messaf-bot-fonction`, compilée par GitHub Actions. Si elle n'est pas accessible, Docker la compile sur place (environ 15 minutes). Pour récupérer une nouvelle version : `docker compose pull bot-fonction`, puis `docker compose up -d`.
 
 ## Vérifier
 
@@ -41,6 +43,7 @@ Au premier démarrage, `secrets` et `keycloak-config` s'exécutent une fois puis
 | http://localhost:8280/login | MAS renvoie vers la page de connexion de Keycloak (domaine MESSAF) |
 | http://localhost:8090 | Page d'accueil de ntfy |
 | http://localhost:8000/docs | Documentation de l'API d'administration (les appels exigent un jeton du portail) |
+| `docker compose logs bot-fonction` | `bot de fonction connecté`, sans erreur `signature croisée incomplète` |
 
 ## Comptes de démonstration
 
@@ -74,6 +77,12 @@ docker compose exec mas mas-cli manage lock-user m100008 --config /config/config
 docker compose exec mas mas-cli manage kill-sessions m100008 --config /config/config.yaml
 ```
 Désactivez aussi l'agent dans Keycloak (domaine `messaf`, **Users**, interrupteur **Enabled**). Pour rendre l'accès : `POST /agents/{matricule}/reactivation`, ou `mas-cli manage unlock-user` et la réactivation dans Keycloak.
+
+## Passation et intérim
+
+Depuis le portail : **Fonctions et passations** (`admin_ministere`) et **Absences et intérims** (RH, supérieur hiérarchique). Le bot exécute dans les salons de fonction et rend compte salon par salon ; voir [api/README.md](../api/README.md#passations-de-service).
+
+Le volume `bot_donnees` contient le magasin chiffré des clés du bot : `docker compose down` le conserve. S'il est effacé seul, effacez aussi le jeton du bot (voir [bots/fonction/README.md](../bots/fonction/README.md#données-à-conserver)).
 
 ## Arrêter
 

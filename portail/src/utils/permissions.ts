@@ -1,4 +1,13 @@
-import { ROLES_AUDIT, ROLES_CONSULTATION, ROLES_ENROLEMENT, ROLES_PORTAIL, ROLES_REVOCATION } from '@/config/messaf';
+import {
+  ROLES_ABSENCES,
+  ROLES_AUDIT,
+  ROLES_CONSULTATION,
+  ROLES_DECLARATION_ABSENCE,
+  ROLES_ENROLEMENT,
+  ROLES_PASSATION,
+  ROLES_PORTAIL,
+  ROLES_REVOCATION,
+} from '@/config/messaf';
 import type { SessionUtilisateur } from '@/types/auth';
 import type { Role } from '@/types/messaf';
 
@@ -15,3 +24,6 @@ export const peutEnroler = (s: SessionUtilisateur | null) => aUnDesRoles(s, ROLE
 export const peutConsulterAgents = (s: SessionUtilisateur | null) => aUnDesRoles(s, ROLES_CONSULTATION);
 export const peutRevoquer = (s: SessionUtilisateur | null) => aUnDesRoles(s, ROLES_REVOCATION);
 export const peutAuditer = (s: SessionUtilisateur | null) => aUnDesRoles(s, ROLES_AUDIT);
+export const peutPasser = (s: SessionUtilisateur | null) => aUnDesRoles(s, ROLES_PASSATION);
+export const peutSuivreAbsences = (s: SessionUtilisateur | null) => aUnDesRoles(s, ROLES_ABSENCES);
+export const peutDeclarerAbsence = (s: SessionUtilisateur | null) => aUnDesRoles(s, ROLES_DECLARATION_ABSENCE);

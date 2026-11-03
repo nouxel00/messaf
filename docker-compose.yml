@@ -1,4 +1,5 @@
-# MESSAF - pile serveur du prototype (jalon 1 : connexion sécurisée et API d'administration)
+# MESSAF - pile serveur du prototype
+# (jalon 1 : connexion sécurisée et API d'administration ; jalon 2 : bot de fonction, passations, intérims)
 # Démarrage depuis la racine du dépôt :  docker compose up -d
 # Les mots de passe sont lus dans le fichier .env (jamais versionné) ;
 # les secrets internes sont générés au premier démarrage dans le volume "secrets".
@@ -152,12 +153,47 @@ services:
       MAS_ADMIN_URL: http://mas:8081/api/admin/v1
       API_ORIGINES: http://localhost:5173,http://localhost:5174
       MESSAF_ADRESSE_SERVEUR: http://localhost:8008
-      # Organigramme, postes et affectations fictifs du document de démarrage
+      # Bot de fonction : API interne, joignable seulement dans le réseau Docker
+      BOT_URL: http://bot-fonction:8090
+      # Organigramme, postes et affectations fictifs du document de démarrage (et deux salons de fonction)
       MESSAF_DEMO: "1"
     volumes:
       - secrets:/secrets:ro
     ports:
       - "8000:8000"
+
+  # Crée une seule fois le compte Matrix du bot de fonction et son jeton (API d'administration de MAS)
+  bot-init:
+    # Image de l'API, construite par le service « api » : rien à télécharger
+    image: messaf-api:jalon1
+    pull_policy: never
+    user: root
+    command: ["python", "outils/jeton_bot.py"]
+    depends_on:
+      api:
+        condition: service_started
+      mas:
+        condition: service_started
+    volumes:
+      - secrets:/secrets
+    restart: "no"
+
+  # Bot de fonction (@bot-fonction:gov.bf) : salons de fonction, passations de service, intérims.
+  # Image compilée par GitHub Actions (.github/workflows/bot-fonction.yml) ; à défaut, compilée ici.
+  bot-fonction:
+    image: ghcr.io/nouxel00/messaf-bot-fonction:latest
+    build: ./bots/fonction
+    restart: unless-stopped
+    depends_on:
+      bot-init:
+        condition: service_completed_successfully
+      synapse:
+        condition: service_started
+    volumes:
+      - secrets:/secrets:ro
+      # Magasin chiffré des clés du bot : le perdre, c'est perdre l'accès aux anciens messages des salons
+      - bot_donnees:/donnees
+    # Aucun port publié : seule l'API lui donne des ordres
 
   # Notifications Android sans Google (UnifiedPush), branchées au jalon 4
   ntfy:
@@ -177,3 +213,4 @@ volumes:
   synapse_data:
   ntfy_cache:
   secrets:
+  bot_donnees:

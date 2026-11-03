@@ -1,8 +1,8 @@
-import { LayoutDashboard, ScrollText, ShieldOff, UserPlus, Users, type LucideIcon } from 'lucide-react';
+import { ArrowLeftRight, CalendarClock, LayoutDashboard, ScrollText, ShieldOff, UserPlus, Users, type LucideIcon } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { useSession } from '@/contexts/AuthContext';
 import type { SessionUtilisateur } from '@/types/auth';
-import { peutAuditer, peutEnroler, peutRevoquer } from '@/utils/permissions';
+import { peutAuditer, peutEnroler, peutPasser, peutRevoquer, peutSuivreAbsences } from '@/utils/permissions';
 import { Marque } from '../ui/Marque';
 
 interface Props {
@@ -15,6 +15,8 @@ interface Lien {
   libelle: string;
   icone: LucideIcon;
   exact: boolean;
+  /** Lien réservé à certains rôles à l'intérieur de sa section. */
+  visible?: (s: SessionUtilisateur) => boolean;
 }
 
 /** Une section par espace ; chacune n'apparaît qu'aux rôles concernés. */
@@ -33,6 +35,14 @@ const sections: { titre: string; visible: (s: SessionUtilisateur) => boolean; li
     // Le gestionnaire RH a déjà le lien « Agents » dans la section Enrôlement
     visible: (s) => peutRevoquer(s) && !peutEnroler(s),
     liens: [{ vers: '/agents', libelle: 'Agents et révocation', icone: ShieldOff, exact: true }],
+  },
+  {
+    titre: 'Fonctions',
+    visible: (s) => peutPasser(s) || peutSuivreAbsences(s),
+    liens: [
+      { vers: '/fonctions', libelle: 'Fonctions et passations', icone: ArrowLeftRight, exact: true, visible: peutPasser },
+      { vers: '/absences', libelle: 'Absences et intérims', icone: CalendarClock, exact: true, visible: peutSuivreAbsences },
+    ],
   },
   {
     titre: 'Contrôle',
@@ -55,7 +65,7 @@ export function BarreLaterale({ ouverte, fermer }: Props) {
             .map((section) => (
               <div key={section.titre}>
                 <p className="sidebar-section">{section.titre}</p>
-                {section.liens.map(({ vers, libelle, icone: Icone, exact }) => (
+                {section.liens.filter((l) => !l.visible || l.visible(session)).map(({ vers, libelle, icone: Icone, exact }) => (
                   <NavLink
                     key={vers}
                     to={vers}

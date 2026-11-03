@@ -18,6 +18,16 @@ export const routesApi = {
   reactivation: (matricule: string) => `${agent(matricule)}/reactivation`,
   /** GET — journal d'audit du ministère, du plus récent au plus ancien. */
   audit: (ministere: string, limite: number) => `${parMinistere('/audit', ministere)}&limite=${limite}`,
+  /** GET — fonctions du ministère (titulaires, intérimaires, salons). */
+  fonctions: (ministere: string) => parMinistere('/fonctions', ministere),
+  /** GET — passations du ministère ; POST — planifier une passation. */
+  passations: (ministere?: string) => (ministere ? parMinistere('/passations', ministere) : '/passations'),
+  executionPassation: (id: number) => `/passations/${id}/execution`,
+  annulationPassation: (id: number) => `/passations/${id}/annulation`,
+  /** GET — absences du ministère ; POST — déclarer une absence. */
+  absences: (ministere?: string) => (ministere ? parMinistere('/absences', ministere) : '/absences'),
+  validationAbsence: (id: number) => `/absences/${id}/validation`,
+  finAbsence: (id: number) => `/absences/${id}/fin`,
   /** GET — le ministère et toutes ses directions et services. */
   structures: (ministere: string) => parMinistere('/structures', ministere),
   /** GET — les postes rattachés aux structures du ministère. */
