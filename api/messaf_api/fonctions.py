@@ -759,9 +759,9 @@ def statut_agent(matricule: str, utilisateur: Utilisateur = Depends(utilisateur_
 
 # ----- Exécution aux dates prévues -----
 
-# Salons de démonstration et leur niveau : DRH ↔ hôpitaux en Diffusion restreinte, DRH ↔ secrétariat général
-# en Confidentiel (les titulaires des deux fonctions y sont habilités).
-SALONS_DEMO = [("DRH-SANTE", "DH-SANTE", "diffusion_restreinte"), ("DRH-SANTE", "SG-SANTE", "confidentiel")]
+# Salons de démonstration et leur niveau. DRH ↔ hôpitaux reste normal : c'est celui que l'on filme, et un écran
+# protégé contre la capture s'enregistre en noir. DRH ↔ secrétariat général est Confidentiel (titulaires habilités).
+SALONS_DEMO = [("DRH-SANTE", "DH-SANTE", "normal"), ("DRH-SANTE", "SG-SANTE", "confidentiel")]
 
 
 def synchroniser_etats() -> None:
