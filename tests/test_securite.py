@@ -84,6 +84,8 @@ class LeServeurNeLitRien(unittest.TestCase):
             en_clair = cnx.execute("SELECT count(*) FROM events WHERE type IN ('m.room.message', 'm.sticker')").fetchone()[0]
             chiffres = cnx.execute("SELECT count(*) FROM events WHERE type = 'm.room.encrypted'").fetchone()[0]
         self.assertEqual(en_clair, 0, "messages stockés en clair")
+        if not chiffres:
+            self.skipTest("aucun message encore échangé : relancer les tests après un premier échange")
         print(f"\n    {chiffres} message(s) stocké(s), tous chiffrés (m.room.encrypted)")
 
     def test_les_messages_chiffres_ne_contiennent_pas_de_texte(self):
@@ -92,6 +94,8 @@ class LeServeurNeLitRien(unittest.TestCase):
                 "SELECT j.json::jsonb -> 'content' FROM events e JOIN event_json j USING (event_id) "
                 "WHERE e.type = 'm.room.encrypted' ORDER BY e.stream_ordering DESC LIMIT 50"
             ).fetchall()
+        if not contenus:
+            self.skipTest("aucun message encore échangé : relancer les tests après un premier échange")
         for (contenu,) in contenus:
             self.assertIn("ciphertext", contenu)
             self.assertNotIn("body", contenu)

@@ -59,7 +59,7 @@ copy .env.example .env        (Linux : cp .env.example .env)
 docker compose up -d
 ```
 
-Renseigner dans `.env` : `POSTGRES_PASSWORD`, `KEYCLOAK_ADMIN_PASSWORD`, `MESSAF_DEMO_PASSWORD` (12 caractères minimum). Portail : `cd portail`, créer `.env.local` ([portail/README.md](portail/README.md)), `npm install`, `npm run dev`, puis http://localhost:5173. Application : installer l'APK de [messaf-android](https://github.com/nouxel00/messaf-android/actions), lancer `deploy\relier-telephones.bat`, adresse `http://localhost:8008`. Vérifications : [deploy/README.md](deploy/README.md). Tests de sécurité (serveur aveugle, intrus, révocation) : `docker compose --profile tests run --rm tests` ([tests/README.md](tests/README.md)).
+Renseigner dans `.env` : `POSTGRES_PASSWORD`, `KEYCLOAK_ADMIN_PASSWORD`, `MESSAF_DEMO_PASSWORD` (12 caractères minimum). Portail : `cd portail`, créer `.env.local` ([portail/README.md](portail/README.md)), `npm install`, `npm run dev`, puis http://localhost:5173. Application : installer l'APK de la [dernière version de messaf-android](https://github.com/nouxel00/messaf-android/releases/latest), lancer `deploy\relier-telephones.bat`, adresse `http://localhost:8008`. Vérifications : [deploy/README.md](deploy/README.md). Tests de sécurité (serveur aveugle, intrus, révocation) : `docker compose --profile tests run --rm tests` ([tests/README.md](tests/README.md)).
 
 ## Comptes de démonstration
 
